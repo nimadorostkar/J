@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import StarField from '../components/StarField.jsx'
 import houstonLogo from '/houston-logo.png'
+import spaceBg from '/space-bg.jpg'
 
 const REWARD_CYCLE_KEY = 'tokenvault.home.cycleEnd'
 
@@ -36,8 +37,19 @@ export default function Home() {
   }, [endTime])
 
   return (
-    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-space-900 flex items-center justify-center px-5 pb-20">
+    <div className="relative min-h-[100dvh] w-full overflow-hidden bg-space-900 flex items-start justify-center px-5 pt-[25vh] pb-20">
       <StarField />
+      {/* Astronaut backdrop at 10% opacity */}
+      <div
+        className="pointer-events-none absolute inset-0 z-[1] opacity-10"
+        style={{
+          backgroundImage: `url(${spaceBg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+        aria-hidden
+      />
 
       <div className="relative z-10 w-full max-w-[480px] flex flex-col items-center text-center gap-7">
         <motion.div

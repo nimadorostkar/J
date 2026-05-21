@@ -9,6 +9,8 @@ import {
   ArrowUp,
   ArrowDown,
   Coins,
+  Trophy,
+  Dices,
 } from 'lucide-react'
 import { useWallet } from '../context/WalletContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
@@ -97,11 +99,11 @@ export default function WalletPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1, duration: 0.4 }}
-        className="mt-4 rounded-3xl border border-gold-400/40 bg-gradient-to-br from-gold-500/10 to-space-700 p-5"
+        className="mt-3 rounded-2xl border border-gold-400/40 bg-gradient-to-br from-gold-500/10 to-space-700 p-3.5"
       >
-        <div className="flex items-center gap-2 mb-3">
-          <Gift size={18} className="text-gold-400" />
-          <span className="text-sm font-semibold text-gold-300 uppercase tracking-wider">Next Reward</span>
+        <div className="flex items-center gap-1.5 mb-2">
+          <Gift size={13} className="text-gold-400" />
+          <span className="text-[11px] font-semibold text-gold-300 uppercase tracking-wider">Next Reward</span>
         </div>
         {!wallet.rewardActive ? (
           <button
@@ -110,7 +112,7 @@ export default function WalletPage() {
               activateReward()
               showToast('Reward cycle activated!', 'success')
             }}
-            className="w-full h-12 rounded-full bg-gold-500 hover:bg-gold-400 text-amber-950 font-semibold shadow-gold-glow active:scale-[0.98] transition"
+            className="w-full h-9 rounded-full bg-gold-500 hover:bg-gold-400 text-amber-950 font-semibold text-sm shadow-gold-glow active:scale-[0.98] transition"
           >
             Activate Reward Cycle
           </button>
@@ -120,14 +122,14 @@ export default function WalletPage() {
             onClick={onClaim}
             animate={{ scale: [1, 1.03, 1] }}
             transition={{ duration: 1.4, repeat: Infinity }}
-            className="w-full h-12 rounded-full bg-gold-500 text-amber-950 font-semibold shadow-gold-glow"
+            className="w-full h-9 rounded-full bg-gold-500 text-amber-950 font-semibold text-sm shadow-gold-glow"
           >
             Claim Reward
           </motion.button>
         ) : (
           <>
-            <Countdown endTime={wallet.rewardEndTime} variant="gold" hideDays />
-            <div className="mt-4 h-1.5 rounded-full bg-space-600 overflow-hidden">
+            <Countdown endTime={wallet.rewardEndTime} variant="gold" hideDays compact />
+            <div className="mt-2.5 h-1 rounded-full bg-space-600 overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-gold-400 to-gold-500 transition-all"
                 style={{
@@ -167,6 +169,24 @@ export default function WalletPage() {
           label="Claim"
           variant="gold"
           badge={rewardReady}
+        />
+      </div>
+
+      {/* Coming Soon: Tournaments & Lucky Spin */}
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <ComingSoonCard
+          label="Tournaments"
+          icon={<Trophy size={28} className="text-amber-300" />}
+          tint="bg-amber-500/15"
+          border="border-amber-400/30"
+          accent="from-transparent via-amber-400/60 to-transparent"
+        />
+        <ComingSoonCard
+          label="Lucky Spin"
+          icon={<Dices size={28} className="text-purple-300" />}
+          tint="bg-purple-500/15"
+          border="border-purple-400/30"
+          accent="from-transparent via-purple-400/60 to-transparent"
         />
       </div>
 
@@ -224,6 +244,24 @@ export default function WalletPage() {
       <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} />
       <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} />
     </div>
+  )
+}
+
+function ComingSoonCard({ label, icon, tint, border, accent }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className={`relative rounded-2xl ${tint} backdrop-blur-md border ${border} px-3 pt-4 pb-3 flex flex-col items-center gap-2 overflow-hidden`}
+    >
+      <div className={`absolute top-0 left-0 right-0 h-px bg-gradient-to-r ${accent}`} />
+      {icon}
+      <span className="text-[13.5px] font-semibold text-white">{label}</span>
+      <span className="text-[9.5px] font-bold tracking-[0.12em] uppercase text-white/55 px-3 py-1 rounded-full bg-black/25 border border-white/15">
+        Coming Soon
+      </span>
+    </motion.div>
   )
 }
 

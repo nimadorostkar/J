@@ -166,14 +166,16 @@ export default function Network() {
 
       {/* Invite shortcut */}
       {!empty && (
-        <motion.button
-          type="button"
-          whileTap={{ scale: 0.96 }}
-          onClick={copyInvite}
-          className="absolute left-1/2 -translate-x-1/2 bottom-20 z-20 flex items-center gap-2 h-10 px-4 rounded-full bg-space-700/80 backdrop-blur-xl border border-space-500 text-sm text-teal-300"
-        >
-          <Copy size={14} /> Copy invite code
-        </motion.button>
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-20 z-20">
+          <motion.button
+            type="button"
+            whileTap={{ scale: 0.96 }}
+            onClick={copyInvite}
+            className="flex items-center gap-2 h-10 px-4 rounded-full bg-space-700/80 backdrop-blur-xl border border-space-500 text-sm text-teal-300"
+          >
+            <Copy size={14} /> Copy invite code
+          </motion.button>
+        </div>
       )}
 
       <NodePopup node={selected} onClose={() => setSelected(null)} />

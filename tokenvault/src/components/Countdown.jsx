@@ -12,7 +12,7 @@ function diff(endMs) {
 
 const pad = (n) => String(n).padStart(2, '0')
 
-export default function Countdown({ endTime, variant = 'teal', hideDays = false }) {
+export default function Countdown({ endTime, variant = 'teal', hideDays = false, compact = false }) {
   const [now, setNow] = useState(() => diff(endTime))
 
   useEffect(() => {
@@ -47,10 +47,26 @@ export default function Countdown({ endTime, variant = 'teal', hideDays = false 
   }
   const c = colorMap[variant] || colorMap.teal
 
+  const sz = compact
+    ? {
+        gap: 'gap-1.5 sm:gap-2',
+        card: 'w-[48px] sm:w-[54px] h-[60px] sm:h-[66px] rounded-xl',
+        digit: 'text-[26px] sm:text-[30px]',
+        label: 'mt-1.5 text-[8px]',
+        sep: 'mb-5 text-xl',
+      }
+    : {
+        gap: 'gap-2 sm:gap-3',
+        card: 'w-[70px] sm:w-[78px] h-[88px] sm:h-[96px] rounded-2xl',
+        digit: 'text-[40px] sm:text-[44px]',
+        label: 'mt-2 text-[10px]',
+        sep: 'mb-7 text-3xl',
+      }
+
   return (
-    <div className="flex items-end justify-center gap-2 sm:gap-3">
+    <div className={`flex items-end justify-center ${sz.gap}`}>
       {blocks.map((b, i) => (
-        <div key={b.label} className="flex items-end gap-2 sm:gap-3">
+        <div key={b.label} className={`flex items-end ${sz.gap}`}>
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -58,18 +74,18 @@ export default function Countdown({ endTime, variant = 'teal', hideDays = false 
             className="flex flex-col items-center"
           >
             <div
-              className={`bg-space-600 border rounded-2xl ${c.card} w-[70px] sm:w-[78px] h-[88px] sm:h-[96px] flex items-center justify-center`}
+              className={`bg-space-600 border ${sz.card} ${c.card} flex items-center justify-center`}
             >
-              <span className={`font-mono font-bold text-[40px] sm:text-[44px] leading-none ${c.digit}`}>
+              <span className={`font-mono font-bold leading-none ${sz.digit} ${c.digit}`}>
                 {b.value}
               </span>
             </div>
-            <span className={`mt-2 text-[10px] tracking-[0.18em] font-semibold ${c.label}`}>
+            <span className={`tracking-[0.18em] font-semibold ${sz.label} ${c.label}`}>
               {b.label}
             </span>
           </motion.div>
           {i < blocks.length - 1 && (
-            <span className={`mb-7 font-mono font-bold text-3xl ${c.sep} animate-blink`}>:</span>
+            <span className={`font-mono font-bold ${sz.sep} ${c.sep} animate-blink`}>:</span>
           )}
         </div>
       ))}
