@@ -13,7 +13,7 @@ const DEFAULT_TRANSACTIONS = [
   { id: 8, type: 'reward', desc: 'Cycle Reward', tokens: 3, usdt: 30.0, date: '2024-01-02 09:00' },
 ]
 
-const STORAGE_KEY = 'tokenvault.wallet'
+const STORAGE_KEY = 'houston.wallet'
 
 const DEFAULT_WALLET = {
   hCoins: 47,

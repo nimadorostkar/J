@@ -1,4 +1,4 @@
-# TokenVault
+# Houston
 
 A production-ready React frontend for a token reward / referral mini-app. Built with **Vite + React 18 + Tailwind + Framer Motion + lucide-react**.
 
@@ -63,7 +63,7 @@ src/
 
 ## Mock auth
 - Any email and a password of 6+ characters logs in.
-- The mock `user` and `wallet` are persisted in `localStorage` under `tokenvault.user` / `tokenvault.wallet`.
+- The mock `user` and `wallet` are persisted in `localStorage` under `houston.user` / `houston.wallet`.
 - Use the **Sign Out** button on the Profile tab to clear the session.
 
 ## Design notes

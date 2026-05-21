@@ -4,7 +4,7 @@ import StarField from '../components/StarField.jsx'
 import houstonLogo from '/houston-logo.png'
 import spaceBg from '/space-bg.jpg'
 
-const REWARD_CYCLE_KEY = 'tokenvault.home.cycleEnd'
+const REWARD_CYCLE_KEY = 'houston.home.cycleEnd'
 
 function getCycleEnd() {
   try {

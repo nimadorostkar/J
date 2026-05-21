@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Coins } from 'lucide-react'
 import StarField from '../components/StarField.jsx'
 import Field from '../components/Field.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import houstonLogo from '/houston-logo.png'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -75,10 +75,12 @@ export default function Register() {
         className="relative z-10 w-full max-w-[390px] bg-space-700/70 backdrop-blur-xl rounded-3xl p-7 border border-space-500 shadow-card"
       >
         <div className="flex flex-col items-center gap-2 mb-6">
-          <div className="flex items-center gap-2">
-            <Coins className="text-teal-400" size={24} />
-            <span className="text-xl font-bold tracking-wide">TokenVault</span>
-          </div>
+          <img
+            src={houstonLogo}
+            alt="Houston"
+            className="h-10 w-auto select-none drop-shadow-[0_0_18px_rgba(45,212,191,0.35)]"
+            draggable="false"
+          />
           <span className="text-sm text-gray-400">Create your account</span>
         </div>
 

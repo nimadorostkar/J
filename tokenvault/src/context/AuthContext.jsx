@@ -15,7 +15,7 @@ const DEFAULT_USER = {
   joinDate: '2024-01-15',
 }
 
-const STORAGE_KEY = 'tokenvault.user'
+const STORAGE_KEY = 'houston.user'
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {

@@ -1,11 +1,41 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Check, ChevronDown, Copy, LogOut, ShieldCheck, UserPlus } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  Copy,
+  LifeBuoy,
+  LogOut,
+  Mail,
+  MessageCircle,
+  Plus,
+  ShieldCheck,
+  UserPlus,
+} from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import Field from '../components/Field.jsx'
 import MobileField from '../components/MobileField.jsx'
 import { COUNTRIES, COUNTRY_CODES } from '../data/network.js'
+
+const FAQS = [
+  {
+    q: 'How does the referral system work?',
+    a: 'Share your invitation code. When someone registers and deposits, you earn a commission directly to your USDT balance.',
+  },
+  {
+    q: 'When do I receive my rewards?',
+    a: 'Rewards are credited every cycle (shown by the countdown timer). Level 1 referrals earn more than Level 2.',
+  },
+  {
+    q: 'How do I withdraw my balance?',
+    a: 'Go to the Wallet tab and tap Withdraw. Minimum withdrawal is 10 USDT. Transfers are processed within 24 hours.',
+  },
+  {
+    q: 'My deposit is not showing. What next?',
+    a: "Allow up to 30 minutes for blockchain confirmation. If it still doesn't appear, contact support with your transaction hash.",
+  },
+]
 
 function splitMobile(stored) {
   if (!stored) return { code: '+1', number: '' }
@@ -38,6 +68,8 @@ export default function Profile() {
   const [pwOpen, setPwOpen] = useState(false)
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
   const [pwErrors, setPwErrors] = useState({})
+  const [supportOpen, setSupportOpen] = useState(false)
+  const [openFaq, setOpenFaq] = useState(null)
 
   const onChange = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
@@ -226,6 +258,107 @@ export default function Profile() {
                 Update Password
               </button>
             </motion.form>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Support */}
+      <div className="mt-5 bg-space-700 border border-space-500 rounded-2xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setSupportOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-space-600/40 transition"
+        >
+          <span className="flex items-center gap-2 text-sm font-medium text-white">
+            <LifeBuoy size={16} className="text-emerald-300" />
+            Support
+          </span>
+          <motion.span animate={{ rotate: supportOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+            <ChevronDown size={18} className="text-gray-400" />
+          </motion.span>
+        </button>
+        <AnimatePresence initial={false}>
+          {supportOpen && (
+            <motion.div
+              key="support"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="px-5 pb-5 pt-1"
+            >
+              {/* Contact cards */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => showToast('Opening live chat…', 'info')}
+                  className="flex flex-col items-center gap-1.5 py-3.5 rounded-2xl bg-white/10 border border-emerald-400/30 backdrop-blur-md hover:border-emerald-400/60 transition"
+                >
+                  <MessageCircle size={22} className="text-emerald-300" />
+                  <span className="text-[13px] font-medium text-white">Live Chat</span>
+                </motion.button>
+                <motion.button
+                  type="button"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => {
+                    window.location.href = 'mailto:support@houston.app'
+                  }}
+                  className="flex flex-col items-center gap-1.5 py-3.5 rounded-2xl bg-white/10 border border-sky-400/30 backdrop-blur-md hover:border-sky-400/60 transition"
+                >
+                  <Mail size={22} className="text-sky-300" />
+                  <span className="text-[13px] font-medium text-white">Email Us</span>
+                </motion.button>
+              </div>
+
+              {/* FAQ */}
+              <p className="text-[11px] font-bold tracking-[0.12em] text-white/50 uppercase pl-0.5 mt-4 mb-2.5">
+                Frequently Asked
+              </p>
+              <div className="space-y-2">
+                {FAQS.map((faq, i) => {
+                  const open = openFaq === i
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-2xl bg-white/[0.06] backdrop-blur-md border border-white/10 overflow-hidden"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setOpenFaq(open ? null : i)}
+                        className="w-full flex items-start justify-between gap-3 px-4 py-3.5 text-left"
+                      >
+                        <span className="text-[13.5px] leading-snug text-white font-medium flex-1">
+                          {faq.q}
+                        </span>
+                        <motion.span
+                          animate={{ rotate: open ? 45 : 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="text-sky-300 shrink-0"
+                        >
+                          <Plus size={18} strokeWidth={1.8} />
+                        </motion.span>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {open && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="border-t border-white/10"
+                          >
+                            <p className="px-4 pt-2.5 pb-3.5 text-[13px] leading-relaxed text-white/70">
+                              {faq.a}
+                            </p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )
+                })}
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
