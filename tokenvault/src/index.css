@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --space-900: #060A14;
+  --space-800: #0A0E1A;
+  --space-700: #0D1326;
+  --space-600: #161D2E;
+  --space-500: #1F2937;
+  --teal: #2DD4BF;
+  --gold: #FBBF24;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: var(--space-900);
+  color: #fff;
+  font-family: 'Outfit', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+input, button, textarea, select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* --- Animated star field (pure CSS, box-shadow technique) --- */
+.stars,
+.stars::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: transparent;
+}
+
+.stars-1 {
+  width: 1px;
+  height: 1px;
+  box-shadow:
+    25vw 10vh #fff, 80vw 5vh #fff, 50vw 80vh #fff, 15vw 60vh #fff, 70vw 40vh #fff,
+    35vw 25vh #fff, 90vw 75vh #fff, 5vw 35vh #fff, 60vw 15vh #fff, 45vw 55vh #fff,
+    20vw 90vh #fff, 85vw 30vh #fff, 30vw 70vh #fff, 65vw 95vh #fff, 10vw 20vh #fff,
+    55vw 45vh #fff, 95vw 60vh #fff, 40vw 5vh #fff, 75vw 85vh #fff, 8vw 50vh #fff,
+    22vw 18vh #fff, 47vw 32vh #fff, 68vw 8vh #fff, 88vw 22vh #fff, 12vw 78vh #fff,
+    58vw 92vh #fff, 33vw 48vh #fff, 78vw 62vh #fff, 92vw 12vh #fff, 18vw 38vh #fff,
+    42vw 72vh #fff, 62vw 28vh #fff, 82vw 88vh #fff, 28vw 8vh #fff, 52vw 18vh #fff,
+    72vw 52vh #fff, 38vw 88vh #fff, 8vw 68vh #fff, 98vw 42vh #fff, 48vw 98vh #fff,
+    25vw 110vh #fff, 80vw 105vh #fff, 50vw 180vh #fff, 15vw 160vh #fff, 70vw 140vh #fff,
+    35vw 125vh #fff, 90vw 175vh #fff, 5vw 135vh #fff, 60vw 115vh #fff, 45vw 155vh #fff;
+}
+
+.stars-2 {
+  width: 2px;
+  height: 2px;
+  background: transparent;
+  box-shadow:
+    13vw 27vh #cfe7ff, 76vw 14vh #cfe7ff, 41vw 66vh #cfe7ff, 22vw 88vh #cfe7ff,
+    63vw 51vh #cfe7ff, 9vw 41vh #cfe7ff, 88vw 67vh #cfe7ff, 54vw 9vh #cfe7ff,
+    31vw 73vh #cfe7ff, 67vw 31vh #cfe7ff, 19vw 12vh #cfe7ff, 49vw 38vh #cfe7ff,
+    81vw 82vh #cfe7ff, 36vw 21vh #cfe7ff, 71vw 94vh #cfe7ff, 6vw 56vh #cfe7ff,
+    93vw 39vh #cfe7ff, 27vw 47vh #cfe7ff, 58vw 78vh #cfe7ff, 44vw 16vh #cfe7ff,
+    13vw 127vh #cfe7ff, 76vw 114vh #cfe7ff, 41vw 166vh #cfe7ff, 22vw 188vh #cfe7ff,
+    63vw 151vh #cfe7ff, 9vw 141vh #cfe7ff, 88vw 167vh #cfe7ff, 54vw 109vh #cfe7ff;
+}
+
+.stars-3 {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow:
+    20vw 50vh #93c5fd, 70vw 30vh #93c5fd, 40vw 80vh #93c5fd, 85vw 60vh #93c5fd,
+    10vw 70vh #93c5fd, 55vw 20vh #93c5fd, 33vw 40vh #93c5fd, 78vw 90vh #93c5fd,
+    20vw 150vh #93c5fd, 70vw 130vh #93c5fd, 40vw 180vh #93c5fd, 85vw 160vh #93c5fd;
+}
+
+/* Shimmer for skeletons */
+.shimmer {
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0.04) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.04) 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Hide number input arrows */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] { -moz-appearance: textfield; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(45, 212, 191, 0.2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(45, 212, 191, 0.4); }
