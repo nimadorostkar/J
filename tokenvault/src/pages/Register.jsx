@@ -14,8 +14,6 @@ export default function Register() {
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
-    countryCode: '+1',
-    mobile: '',
     email: '',
     password: '',
     confirm: '',
@@ -33,13 +31,12 @@ export default function Register() {
     const e = {}
     if (!form.firstName) e.firstName = 'Required'
     if (!form.lastName) e.lastName = 'Required'
-    if (!form.mobile) e.mobile = 'Mobile is required'
-    else if (!/^[0-9 ]{6,15}$/.test(form.mobile)) e.mobile = 'Enter digits only'
     if (!form.email) e.email = 'Email is required'
     else if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = 'Enter a valid email'
     if (!form.password) e.password = 'Required'
     else if (form.password.length < 6) e.password = 'Min 6 characters'
     if (form.confirm !== form.password) e.confirm = 'Passwords do not match'
+    if (!form.invite.trim()) e.invite = 'Invite code is required'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -53,7 +50,7 @@ export default function Register() {
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email,
-        mobile: `${form.countryCode} ${form.mobile}`,
+        inviteCode: form.invite.trim(),
       })
       showToast('Account created!', 'success')
       navigate('/home', { replace: true })
@@ -89,16 +86,11 @@ export default function Register() {
           <Field label="Last Name" value={form.lastName} onChange={onChange('lastName')} error={errors.lastName} placeholder="Morgan" />
         </div>
 
-        <div className="mt-3 grid grid-cols-[80px_1fr] gap-3">
-          <Field label="Code" value={form.countryCode} onChange={onChange('countryCode')} placeholder="+1" />
-          <Field label="Mobile" inputMode="numeric" value={form.mobile} onChange={onChange('mobile')} error={errors.mobile} placeholder="555 0100" />
-        </div>
-
         <div className="space-y-3 mt-3">
           <Field label="Email" type="email" value={form.email} onChange={onChange('email')} error={errors.email} placeholder="you@example.com" />
           <Field label="Password" type="password" value={form.password} onChange={onChange('password')} error={errors.password} placeholder="••••••••" />
           <Field label="Confirm Password" type="password" value={form.confirm} onChange={onChange('confirm')} error={errors.confirm} placeholder="••••••••" />
-          <Field label="Invite Code (optional)" value={form.invite} onChange={onChange('invite')} placeholder="FRIEND2024" />
+          <Field label="Invite Code" value={form.invite} onChange={onChange('invite')} error={errors.invite} placeholder="FRIEND2024" />
         </div>
 
         <motion.button

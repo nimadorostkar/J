@@ -51,7 +51,7 @@ export function AuthProvider({ children }) {
       country: data.country || DEFAULT_USER.country,
       referralCode: (data.firstName?.toUpperCase() || 'USER') + '2024',
       hasDeposit: false,
-      hasReferral: false,
+      hasReferral: Boolean(data.inviteCode),
       joinDate: new Date().toISOString().slice(0, 10),
     }
     setUser(next)
