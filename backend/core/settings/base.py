@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "drf_yasg",
     "encrypted_model_fields",
     # Local apps
+    "core.apps.CoreConfig",
     "users",
     "wallet",
     "transactions",
