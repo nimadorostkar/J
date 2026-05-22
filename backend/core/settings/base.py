@@ -199,11 +199,14 @@ CACHES = {
     }
 }
 
-# Encrypted field key
-FIELD_ENCRYPTION_KEY = config(
-    "FIELD_ENCRYPTION_KEY",
-    default="kBwy_DKvJjAfHRr3wnPHHfRz0wYwAtAVgmJxhJOyZc4="  # dev-only fallback
-)
+# Encrypted field key. Must be a 32-byte url-safe base64 Fernet key.
+# Generate one with:
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# An empty env value is treated as "unset" — we fall back to a dev key so
+# `docker compose up` works out of the box. NEVER ship to prod without setting
+# FIELD_ENCRYPTION_KEY to a freshly generated key.
+_DEV_FERNET_KEY = "kBwy_DKvJjAfHRr3wnPHHfRz0wYwAtAVgmJxhJOyZc4="
+FIELD_ENCRYPTION_KEY = config("FIELD_ENCRYPTION_KEY", default="") or _DEV_FERNET_KEY
 
 # Economics
 USDT_PER_HCOIN = config("USDT_PER_HCOIN", default=10, cast=int)
