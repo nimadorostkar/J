@@ -11,6 +11,7 @@ import Home from './pages/Home.jsx'
 import Wallet from './pages/Wallet.jsx'
 import Network from './pages/Network.jsx'
 import Profile from './pages/Profile.jsx'
+import Trade from './pages/Trade.jsx'
 
 function Protected({ children }) {
   const { user, status } = useAuth()
@@ -58,7 +59,7 @@ function PageShell({ children }) {
 export default function App() {
   const location = useLocation()
   const { user } = useAuth()
-  const isApp = ['/home', '/wallet', '/network', '/profile'].some((p) =>
+  const isApp = ['/home', '/wallet', '/network', '/trade', '/profile'].some((p) =>
     location.pathname.startsWith(p),
   )
 
@@ -120,6 +121,14 @@ export default function App() {
               element={
                 <Protected>
                   <PageShell><Network /></PageShell>
+                </Protected>
+              }
+            />
+            <Route
+              path="/trade"
+              element={
+                <Protected>
+                  <PageShell><Trade /></PageShell>
                 </Protected>
               }
             />

@@ -24,6 +24,7 @@ def approve_withdrawals(modeladmin, request, queryset):
 @admin.action(description="Force-complete deposit (credit wallet)")
 def force_complete_deposit(modeladmin, request, queryset):
     n = 0
+    newly_qualified_users = []
     for tx in queryset.filter(type=Transaction.TYPE_DEPOSIT,
                               status__in=[Transaction.STATUS_PENDING,
                                           Transaction.STATUS_PROCESSING]):
@@ -40,6 +41,19 @@ def force_complete_deposit(modeladmin, request, queryset):
             log_audit("deposit_complete", user=request.user, tx_id=str(tx.id),
                       forced=True, amount=str(tx.amount_usdt))
             n += 1
+        if is_first:
+            newly_qualified_users.append(tx.user)
+
+    # After all commits, recheck milestones for each inviter whose
+    # referral just became qualified.
+    if newly_qualified_users:
+        from referrals.services import on_deposit_completed
+        for u in newly_qualified_users:
+            try:
+                on_deposit_completed(u)
+            except Exception:
+                pass
+
     messages.success(request, f"{n} deposit(s) force-completed.")
 
 

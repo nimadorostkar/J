@@ -5,5 +5,6 @@ export const referralsApi = {
   code: () => api.get('/referrals/code/'),
   network: () => api.get('/referrals/network/'),
   stats: () => api.get('/referrals/stats/'),
+  milestones: () => api.get('/referrals/milestones/'),
   validate: (code) => api.post('/referrals/validate/', { code }, { auth: false }),
 }

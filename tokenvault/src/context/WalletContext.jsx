@@ -4,19 +4,28 @@ import { useAuth } from './AuthContext.jsx'
 
 const WalletContext = createContext(null)
 
-// Normalize a backend transaction (TransactionSerializer) to what the UI wants
+// Types that REMOVE H Coins from the balance — shown as negative in the UI.
+const DEBIT_TYPES = new Set(['withdraw', 'bot_fee'])
+
+// Human-readable labels per transaction type.
+const TYPE_LABELS = {
+  deposit: 'USDT Deposit',
+  withdraw: 'Withdrawal',
+  reward: 'Cycle Reward',
+  commission: 'Referral Bonus',
+  referral_milestone: 'Referral Milestone',
+  bot_fee: 'Bot Activation Fee',
+  bot_profit: 'Bot Profit',
+}
+
+// Normalize a backend transaction (TransactionSerializer) to what the UI wants.
 function normalizeTransaction(t) {
-  // Backend likely emits snake_case: id, type, amount_hcoin, amount_usdt, status, created_at...
-  // We translate to: { id, type, desc, tokens, usdt, date, status }
+  // Backend emits snake_case: id, type, amount_hcoin, amount_usdt, status, created_at...
   const amountH = Number(t.amount_hcoin ?? t.amountHcoin ?? 0)
   const amountU = Number(t.amount_usdt ?? t.amountUsdt ?? 0)
   const type = t.type || 'reward'
-  const signed = type === 'withdraw' ? -Math.abs(amountH) : Math.abs(amountH)
-  const desc =
-    type === 'deposit' ? 'USDT Deposit'
-    : type === 'withdraw' ? 'Withdrawal'
-    : type === 'commission' ? 'Referral Bonus'
-    : 'Cycle Reward'
+  const signed = DEBIT_TYPES.has(type) ? -Math.abs(amountH) : Math.abs(amountH)
+  const desc = TYPE_LABELS[type] || 'Cycle Reward'
   const d = new Date(t.created_at || t.createdAt || t.date || Date.now())
   return {
     id: t.id,

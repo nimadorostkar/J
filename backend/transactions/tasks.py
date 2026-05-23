@@ -82,6 +82,17 @@ def verify_deposit(self, transaction_id):
                   tx_id=str(tx.id), amount=str(tx.amount_usdt),
                   first_deposit=is_first)
 
+    # On the FIRST completed deposit, this user newly "qualifies" as a
+    # referral — check whether the L1 inviter should now get a milestone
+    # payout. Runs outside the deposit's atomic block so a milestone
+    # failure can never break the deposit commit.
+    if is_first:
+        try:
+            from referrals.services import on_deposit_completed
+            on_deposit_completed(tx.user)
+        except Exception:
+            logger.exception("on_deposit_completed failed for user %s", tx.user_id)
+
     # Notify user via WS + Notification row
     from notifications.tasks import send_notification
     send_notification.delay(

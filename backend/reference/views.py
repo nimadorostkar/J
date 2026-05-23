@@ -43,6 +43,24 @@ class PlatformConfigView(APIView):
                 "l1Percent": settings.REFERRAL_L1_COMMISSION_PCT,
                 "l2Percent": settings.REFERRAL_L2_COMMISSION_PCT,
             },
+            "referralMilestone": {
+                "size": settings.REFERRAL_MILESTONE_SIZE,
+                "rewardHcoin": settings.REFERRAL_MILESTONE_REWARD_HCOIN,
+            },
+            "bots": {
+                "basic": {
+                    "feePercent": settings.BOT_BASIC_FEE_PCT,
+                    "durationSeconds": settings.BOT_BASIC_DURATION_SECONDS,
+                    "profitMinPercent": settings.BOT_BASIC_PROFIT_MIN_PCT,
+                    "profitMaxPercent": settings.BOT_BASIC_PROFIT_MAX_PCT,
+                },
+                "expert": {
+                    "feePercent": settings.BOT_EXPERT_FEE_PCT,
+                    "durationSeconds": settings.BOT_EXPERT_DURATION_SECONDS,
+                    "profitMinPercent": settings.BOT_EXPERT_PROFIT_MIN_PCT,
+                    "profitMaxPercent": settings.BOT_EXPERT_PROFIT_MAX_PCT,
+                },
+            },
             "globalCycleDays": settings.GLOBAL_CYCLE_DAYS,
         }
         # Allow ops to override individual keys from DB

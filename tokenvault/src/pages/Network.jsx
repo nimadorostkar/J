@@ -27,10 +27,22 @@ function toUiNode(row, level) {
     name,
     avatar: resolveMediaUrl(u.avatarUrl),
     joined: u.joinedAt ? new Date(u.joinedAt).toISOString().slice(0, 10) : '',
-    status: 'Active',
+    // New status fields from backend
+    isVerified: !!row.isVerified,
+    hasDeposit: !!row.hasDeposit,
+    isQualified: !!row.isQualified,
+    statusCode: row.status || 'registered',
+    statusLabel: STATUS_LABELS[row.status] || STATUS_LABELS.registered,
     commission: row.totalCommissionEarnedHcoin ?? '0',
     parent: row.parent || null,
   }
+}
+
+const STATUS_LABELS = {
+  registered: 'Registered',
+  verified: 'Verified',
+  first_deposit_completed: 'First Deposit Completed',
+  qualified: 'Qualified Referral',
 }
 
 export default function Network() {
@@ -42,12 +54,17 @@ export default function Network() {
   const [shareUrl, setShareUrl] = useState('')
   const [code, setCode] = useState(user?.referralCode || '')
   const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
-    Promise.allSettled([referralsApi.network(), referralsApi.code()])
-      .then(([net, codeRes]) => {
+    Promise.allSettled([
+      referralsApi.network(),
+      referralsApi.code(),
+      referralsApi.stats(),
+    ])
+      .then(([net, codeRes, statsRes]) => {
         if (cancelled) return
         if (net.status === 'fulfilled' && net.value) {
           setL1((net.value.level1 || []).map((r) => toUiNode(r, 1)))
@@ -57,10 +74,16 @@ export default function Network() {
           setCode(codeRes.value.code)
           setShareUrl(codeRes.value.shareUrl || '')
         }
+        if (statsRes.status === 'fulfilled' && statsRes.value) {
+          setStats(statsRes.value)
+        }
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [])
+
+  // Milestone progress (optional — backend may not include yet)
+  const milestone = stats?.milestone || null
 
   const VIEWBOX = 520
   const CENTER = VIEWBOX / 2
@@ -102,15 +125,68 @@ export default function Network() {
     <div className="relative min-h-[100dvh] w-full overflow-hidden bg-space-900 pb-20">
       <StarField />
 
-      {/* Counter pills */}
-      <div className="relative z-20 flex items-center justify-center gap-2 pt-5 px-5">
+      {/* Counter pills — qualified vs registered */}
+      <div className="relative z-20 flex flex-wrap items-center justify-center gap-2 pt-5 px-5">
         <span className="px-3 py-1 rounded-full bg-teal-500/15 border border-teal-400/40 text-teal-300 text-xs font-medium">
-          Level 1 · {l1.length} members
+          Level 1 · {l1.length} signed up
         </span>
+        <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-xs font-medium">
+          Qualified · {stats?.qualifiedCount ?? 0}
+        </span>
+        {(stats?.pendingDepositCount ?? 0) > 0 && (
+          <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-medium">
+            Awaiting deposit · {stats.pendingDepositCount}
+          </span>
+        )}
         <span className="px-3 py-1 rounded-full bg-purple-500/15 border border-purple-400/40 text-purple-300 text-xs font-medium">
-          Level 2 · {l2.length} members
+          Level 2 · {l2.length}
         </span>
       </div>
+
+      {/* Milestone progress card — based on QUALIFIED referrals only */}
+      {milestone && (
+        <div className="relative z-20 mx-5 mt-3 rounded-2xl border border-gold-400/40 bg-gradient-to-br from-gold-500/10 to-space-700 p-3.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-semibold text-gold-300 uppercase tracking-wider">
+              Referral Milestones
+            </span>
+            <span className="font-mono text-[12px] font-bold text-gold-300">
+              +{milestone.rewardHcoin} H per {milestone.size} qualified
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-400 leading-snug">
+            {milestone.qualifiedUntilNext > 0 ? (
+              <>
+                <span className="text-white font-semibold">{milestone.qualifiedUntilNext}</span>{' '}
+                more {milestone.qualifiedUntilNext === 1 ? 'qualified referral' : 'qualified referrals'} to
+                your next reward at{' '}
+                <span className="text-gold-300 font-semibold">{milestone.nextMilestoneAt}</span>.
+              </>
+            ) : (
+              <>Reward unlocked — invite one more friend to start the next tier.</>
+            )}
+          </p>
+          <div className="mt-2 h-1 rounded-full bg-space-600 overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-gold-400 to-gold-500 transition-all"
+              style={{ width: `${Math.min(100, milestone.progressPercent || 0)}%` }}
+            />
+          </div>
+          <p className="mt-2 text-[10px] text-amber-200/80 leading-snug italic">
+            Only invited users with at least one completed deposit count as qualified referrals.
+          </p>
+          {milestone.milestonesPaid > 0 && (
+            <p className="mt-1.5 text-[10.5px] text-gray-500">
+              {milestone.milestonesPaid} milestone{milestone.milestonesPaid === 1 ? '' : 's'} reached ·
+              earned{' '}
+              <span className="text-gold-300 font-semibold">
+                {milestone.totalRewardEarnedHcoin}
+              </span>{' '}
+              H from referrals.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Galaxy */}
       <div className="relative z-10 mt-4 flex items-center justify-center">
@@ -125,16 +201,61 @@ export default function Network() {
                 <animate attributeName="stroke-dashoffset" from="0" to="-32" dur="3s" repeatCount="indefinite" />
               </line>
             ))}
-            {l1Positions.map((n) => (
-              <g key={n.id} style={{ transformOrigin: `${n.x}px ${n.y}px` }} className="cursor-pointer" onClick={() => setSelected(n)}>
-                <g style={{ transformOrigin: `${n.x}px ${n.y}px` }} className="animate-spin-slower">
-                  <circle cx={n.x} cy={n.y} r="22" fill="rgba(45,212,191,0.2)" stroke="#2DD4BF" strokeWidth="1.5" />
-                  <text x={n.x} y={n.y + 4} textAnchor="middle" fill="#5EEAD4" fontSize="11" fontWeight="700">
-                    {initials(n.name)}
-                  </text>
+            {l1Positions.map((n) => {
+              const clipId = `l1Clip-${n.id}`
+              // Color the ring by qualification status:
+              //   qualified  → teal (#2DD4BF)
+              //   not yet    → amber (#F59E0B) so the user can see who they're waiting on
+              const ringColor = n.isQualified ? '#2DD4BF' : '#F59E0B'
+              return (
+                <g
+                  key={n.id}
+                  style={{ transformOrigin: `${n.x}px ${n.y}px` }}
+                  className="cursor-pointer"
+                  onClick={() => setSelected(n)}
+                >
+                  <g style={{ transformOrigin: `${n.x}px ${n.y}px` }} className="animate-spin-slower">
+                    <defs>
+                      <clipPath id={clipId}>
+                        <circle cx={n.x} cy={n.y} r="20" />
+                      </clipPath>
+                    </defs>
+                    {/* Background glow */}
+                    <circle
+                      cx={n.x} cy={n.y} r="22"
+                      fill={n.isQualified ? 'rgba(45,212,191,0.2)' : 'rgba(245,158,11,0.18)'}
+                    />
+                    {n.avatar ? (
+                      <image
+                        href={n.avatar}
+                        xlinkHref={n.avatar}
+                        x={n.x - 20}
+                        y={n.y - 20}
+                        width="40"
+                        height="40"
+                        preserveAspectRatio="xMidYMid slice"
+                        clipPath={`url(#${clipId})`}
+                      />
+                    ) : (
+                      <text x={n.x} y={n.y + 4} textAnchor="middle"
+                        fill={n.isQualified ? '#5EEAD4' : '#FCD34D'}
+                        fontSize="11" fontWeight="700">
+                        {initials(n.name)}
+                      </text>
+                    )}
+                    {/* Status ring */}
+                    <circle cx={n.x} cy={n.y} r="22" fill="none"
+                      stroke={ringColor} strokeWidth="1.5" pointerEvents="none" />
+                    {/* Small dot ↘ marks "awaiting deposit" so it stands out at a glance */}
+                    {!n.isQualified && (
+                      <circle cx={n.x + 16} cy={n.y - 16} r="4"
+                        fill="#F59E0B" stroke="#1F2937" strokeWidth="1.5"
+                        pointerEvents="none" />
+                    )}
+                  </g>
                 </g>
-              </g>
-            ))}
+              )
+            })}
           </g>
 
           <g style={{ transformOrigin: `${CENTER}px ${CENTER}px` }} className="animate-spin-slower">
@@ -144,14 +265,38 @@ export default function Network() {
                 <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="4s" repeatCount="indefinite" />
               </line>
             ))}
-            {l2Positions.map((n) => (
-              <g key={n.id} className="cursor-pointer" onClick={() => setSelected(n)}>
-                <circle cx={n.x} cy={n.y} r="15" fill="rgba(168,85,247,0.2)" stroke="#A78BFA" strokeWidth="1.25" />
-                <text x={n.x} y={n.y + 3} textAnchor="middle" fill="#C4B5FD" fontSize="9" fontWeight="700">
-                  {initials(n.name)}
-                </text>
-              </g>
-            ))}
+            {l2Positions.map((n) => {
+              const clipId = `l2Clip-${n.id}`
+              return (
+                <g key={n.id} className="cursor-pointer" onClick={() => setSelected(n)}>
+                  <defs>
+                    <clipPath id={clipId}>
+                      <circle cx={n.x} cy={n.y} r="13.5" />
+                    </clipPath>
+                  </defs>
+                  {/* Background glow */}
+                  <circle cx={n.x} cy={n.y} r="15" fill="rgba(168,85,247,0.2)" />
+                  {n.avatar ? (
+                    <image
+                      href={n.avatar}
+                      xlinkHref={n.avatar}
+                      x={n.x - 13.5}
+                      y={n.y - 13.5}
+                      width="27"
+                      height="27"
+                      preserveAspectRatio="xMidYMid slice"
+                      clipPath={`url(#${clipId})`}
+                    />
+                  ) : (
+                    <text x={n.x} y={n.y + 3} textAnchor="middle" fill="#C4B5FD" fontSize="9" fontWeight="700">
+                      {initials(n.name)}
+                    </text>
+                  )}
+                  {/* Border on top */}
+                  <circle cx={n.x} cy={n.y} r="15" fill="none" stroke="#A78BFA" strokeWidth="1.25" pointerEvents="none" />
+                </g>
+              )
+            })}
           </g>
 
           {/* Center user node — avatar (clipped to circle) + pulsing ring */}

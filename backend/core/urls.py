@@ -30,6 +30,7 @@ api_v1 = [
     path("reference/", include("reference.urls")),
     path("tournaments/", include("tournaments.urls")),
     path("lucky-spin/", include("lucky_spin.urls")),
+    path("trade/", include("trade.urls")),
     path("health/", include("core.health_urls")),
     path("webhooks/", include("transactions.urls_webhooks")),
 ]

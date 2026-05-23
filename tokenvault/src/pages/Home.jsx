@@ -55,7 +55,12 @@ export default function Home() {
           />
         </motion.div>
 
-        <span className="text-white text-[12px]">{text}</span>
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-white text-[12px]">{text}</span>
+          <span className="text-gray-400 text-[11px] tracking-wide">
+            Until the End of the Initial Coin Offering (ICO)
+          </span>
+        </div>
       </div>
     </div>
   )

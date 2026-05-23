@@ -76,6 +76,24 @@ class RegisterSerializer(serializers.Serializer):
         if inviter.referred_by_id:
             Wallet.objects.filter(user=inviter.referred_by).update(has_referral=True)
 
+        # Milestone reward — at registration time we run this defensively,
+        # but a brand-new user hasn't deposited yet, so they don't count
+        # as a QUALIFIED referral and no milestone fires here. The actual
+        # qualifying event is the FIRST completed deposit, which triggers
+        # `on_deposit_completed(user)` from transactions.tasks. Keeping
+        # this call serves only to "pick up" any pre-existing qualified
+        # referrals (e.g. backfilled state) for the inviter — it's
+        # idempotent and safe.
+        try:
+            from referrals.services import pay_referral_milestones
+            pay_referral_milestones(inviter)
+        except Exception:
+            # Never let milestone payment failure block a registration.
+            import logging
+            logging.getLogger("tokenvault").exception(
+                "pay_referral_milestones failed for inviter %s", inviter.id,
+            )
+
         return user
 
 

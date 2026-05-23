@@ -12,11 +12,17 @@ class Transaction(models.Model):
     TYPE_WITHDRAW = "withdraw"
     TYPE_REWARD = "reward"
     TYPE_COMMISSION = "commission"
+    TYPE_REFERRAL_MILESTONE = "referral_milestone"
+    TYPE_BOT_FEE = "bot_fee"
+    TYPE_BOT_PROFIT = "bot_profit"
     TYPE_CHOICES = [
         (TYPE_DEPOSIT, "Deposit"),
         (TYPE_WITHDRAW, "Withdraw"),
         (TYPE_REWARD, "Reward"),
         (TYPE_COMMISSION, "Commission"),
+        (TYPE_REFERRAL_MILESTONE, "Referral milestone"),
+        (TYPE_BOT_FEE, "Bot fee"),
+        (TYPE_BOT_PROFIT, "Bot profit"),
     ]
 
     NETWORK_CHOICES = [
@@ -49,7 +55,7 @@ class Transaction(models.Model):
         related_name="transactions",
     )
 
-    type = models.CharField(max_length=16, choices=TYPE_CHOICES)
+    type = models.CharField(max_length=24, choices=TYPE_CHOICES)
     network = models.CharField(max_length=12, choices=NETWORK_CHOICES, null=True, blank=True)
 
     amount_usdt = models.DecimalField(max_digits=18, decimal_places=8, null=True, blank=True)

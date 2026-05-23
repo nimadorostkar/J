@@ -1,10 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Timer, Wallet, Share2, User } from 'lucide-react'
+import { Timer, Wallet, Share2, User, Bot } from 'lucide-react'
 
 const TABS = [
   { to: '/home', label: 'Home', Icon: Timer },
   { to: '/wallet', label: 'Wallet', Icon: Wallet },
+  { to: '/trade', label: 'Trade', Icon: Bot },
   { to: '/network', label: 'Network', Icon: Share2 },
   { to: '/profile', label: 'Profile', Icon: User },
 ]

@@ -38,17 +38,90 @@ def _compute_reward_amount(wallet) -> Decimal:
     return max(raw, floor)
 
 
+def _check_activation_eligibility(user, wallet):
+    """
+    Returns (eligible: bool, reasons: list[dict]) where each reason has a
+    machine-readable `code` and a user-facing `message`. Both rules are
+    checked so the UI can list every missing requirement at once.
+
+    Rules:
+      1. Wallet H Coin balance must be > 0.
+      2. User must have at least one successfully invited referral.
+    """
+    reasons = []
+
+    balance = (wallet.h_coin_balance if wallet else Decimal(0)) or Decimal(0)
+    if balance <= 0:
+        reasons.append({
+            "code": "INSUFFICIENT_BALANCE",
+            "message": "Insufficient wallet balance to activate reward cycle.",
+        })
+
+    # Qualified referral = L1 invited user with ≥1 completed deposit.
+    # Signups alone no longer satisfy this rule (anti-fake-account).
+    from referrals.models import Referral
+    has_qualified_referral = Referral.objects.qualified_for(user).exists()
+
+    # Keep the cached wallet.has_referral flag in sync so other code paths
+    # that read it (admin views, dashboards) see the latest state.
+    if wallet and bool(wallet.has_referral) != has_qualified_referral:
+        wallet.has_referral = has_qualified_referral
+        wallet.save(update_fields=["has_referral", "updated_at"])
+
+    if not has_qualified_referral:
+        reasons.append({
+            "code": "NO_QUALIFIED_REFERRAL",
+            "message": (
+                "At least one invited user with a completed deposit is "
+                "required to activate the reward cycle."
+            ),
+        })
+
+    return (len(reasons) == 0, reasons)
+
+
+def _target_global_end_time():
+    """
+    Resolve the configured "season" end time.
+
+    If GLOBAL_CYCLE_END_DATE is set in env / settings (format YYYY-MM-DD),
+    return it as a tz-aware datetime at 00:00 UTC. Otherwise return
+    `now + GLOBAL_CYCLE_DAYS` for the rolling cycle behaviour.
+    """
+    raw = (getattr(settings, "GLOBAL_CYCLE_END_DATE", None) or "").strip()
+    if raw:
+        try:
+            from datetime import datetime, timezone as dtz
+            return datetime.strptime(raw, "%Y-%m-%d").replace(tzinfo=dtz.utc)
+        except Exception:
+            pass
+    return timezone.now() + timedelta(days=settings.GLOBAL_CYCLE_DAYS)
+
+
 def _ensure_global_cycle():
-    """Make sure a current global cycle exists; create one if not."""
+    """
+    Make sure the active global cycle exists and ends at the configured
+    target date. If an existing cycle has a stale end_time, rewrite it
+    in place so the Home countdown jumps to the new target immediately.
+    """
     now = timezone.now()
-    gc = GlobalCycle.objects.filter(is_active=True, end_time__gt=now).first()
-    if gc:
+    target = _target_global_end_time()
+
+    gc = GlobalCycle.objects.filter(is_active=True).order_by("-start_time").first()
+
+    if gc and gc.end_time > now:
+        # Existing cycle still in the future — sync its end_time if needed.
+        if gc.end_time != target:
+            gc.end_time = target
+            gc.save(update_fields=["end_time"])
         return gc
+
+    # No active cycle (or it already expired) — start a fresh one.
     GlobalCycle.objects.filter(is_active=True).update(is_active=False)
     return GlobalCycle.objects.create(
         label="Season",
         start_time=now,
-        end_time=now + timedelta(days=settings.GLOBAL_CYCLE_DAYS),
+        end_time=target,
         is_active=True,
     )
 
@@ -66,9 +139,11 @@ class RewardCycleView(APIView):
         wallet = Wallet.objects.filter(user=request.user).first()
         if cycle:
             return Response(RewardCycleSerializer(cycle).data)
-        # No active cycle — preview what the next one would look like.
+        # No active cycle — preview what the next one would look like AND
+        # surface eligibility so the SPA can disable the button preemptively.
         duration = _cycle_duration()
         preview_amount = _compute_reward_amount(wallet) if wallet else Decimal(settings.REWARD_MIN_HCOIN)
+        eligible, reasons = _check_activation_eligibility(request.user, wallet)
         return Response({
             "active": False,
             "status": None,
@@ -77,6 +152,8 @@ class RewardCycleView(APIView):
             "durationDays": settings.REWARD_DURATION_DAYS,
             "rewardPercent": settings.REWARD_PERCENT,
             "rewardTokens": str(preview_amount),
+            "canActivate": eligible,
+            "ineligibilityReasons": reasons,
         })
 
 
@@ -96,6 +173,25 @@ class ActivateCycleView(APIView):
                      "message": "A reward cycle is already active."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+
+            # === Pre-activation guards ===
+            # 1) wallet balance must be > 0
+            # 2) user must have ≥ 1 successful invited referral
+            eligible, reasons = _check_activation_eligibility(request.user, wallet)
+            if not eligible:
+                # Use the first reason for the top-level code/message so older
+                # clients that don't read `reasons` still get something useful,
+                # while new clients can show every missing requirement.
+                primary = reasons[0]
+                return Response(
+                    {
+                        "code": primary["code"],
+                        "message": primary["message"],
+                        "reasons": reasons,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             now = timezone.now()
             duration = _cycle_duration()
             amount = _compute_reward_amount(wallet)

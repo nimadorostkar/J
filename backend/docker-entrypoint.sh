@@ -21,7 +21,7 @@
 set -e
 
 # Apps with custom models we want to generate migrations for.
-APPS="core users wallet transactions referrals rewards notifications support reference"
+APPS="core users wallet transactions referrals rewards notifications support reference trade"
 
 is_db_setup_leader() {
     # Only the django service runs DB setup; the others tail-wait.
@@ -97,6 +97,37 @@ if is_db_setup_leader "$1"; then
 
     echo "==> applying migrations"
     python manage.py migrate --noinput
+
+    # Defensive: this image regenerates 0001_initial on every boot, so when a
+    # new model is added between deploys, `migrate` will see 0001_initial as
+    # already applied and skip the new CreateModel operation, leaving the
+    # table missing. Walk every installed model and `CREATE TABLE` for any
+    # that's missing in the live DB. Safe + idempotent.
+    echo "==> reconciling missing tables"
+    python - <<'PY' || true
+import os, sys, django
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings.prod")
+django.setup()
+from django.apps import apps
+from django.db import connection
+existing = set(connection.introspection.table_names())
+created = []
+with connection.schema_editor() as editor:
+    for model in apps.get_models():
+        # Skip unmanaged / proxy models — they don't own a table.
+        if model._meta.managed is False or model._meta.proxy:
+            continue
+        if model._meta.db_table not in existing:
+            try:
+                editor.create_model(model)
+                created.append(model._meta.db_table)
+            except Exception as e:
+                print(f"  ! could not create {model._meta.db_table}: {e}", file=sys.stderr)
+if created:
+    print(f"  created: {', '.join(created)}")
+else:
+    print("  nothing missing")
+PY
 
     echo "==> loading reference fixtures"
     python manage.py loaddata fixtures/countries.json fixtures/dial_codes.json || true

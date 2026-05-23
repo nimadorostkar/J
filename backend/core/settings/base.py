@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "reference",
     "tournaments",
     "lucky_spin",
+    "trade",
 ]
 
 MIDDLEWARE = [
@@ -239,6 +240,10 @@ WITHDRAWAL_AUTO_APPROVE = config("WITHDRAWAL_AUTO_APPROVE", default=False, cast=
 REWARD_DURATION_HOURS = config("REWARD_DURATION_HOURS", default=12, cast=int)
 REWARD_AMOUNT_HCOIN = config("REWARD_AMOUNT_HCOIN", default=5, cast=int)
 GLOBAL_CYCLE_DAYS = config("GLOBAL_CYCLE_DAYS", default=30, cast=int)
+# Fixed end date for the global "season" countdown shown on the Home tab.
+# Format: YYYY-MM-DD (UTC). Leave blank to fall back to GLOBAL_CYCLE_DAYS
+# rolling from "now".
+GLOBAL_CYCLE_END_DATE = config("GLOBAL_CYCLE_END_DATE", default="2026-10-01")
 
 # Per-user reward cycle: lasts REWARD_DURATION_DAYS, pays out REWARD_PERCENT
 # of the user's H Coin balance at activation time (with REWARD_MIN_HCOIN as
@@ -249,6 +254,33 @@ REWARD_MIN_HCOIN = config("REWARD_MIN_HCOIN", default=1, cast=int)
 
 REFERRAL_L1_COMMISSION_PCT = config("REFERRAL_L1_COMMISSION_PCT", default=5, cast=int)
 REFERRAL_L2_COMMISSION_PCT = config("REFERRAL_L2_COMMISSION_PCT", default=3, cast=int)
+
+# Per-endpoint throttle rates (DRF format: "N/period", e.g. "5/min", "100/hour").
+# Tune up during dev when bulk-testing referral milestones, etc.
+THROTTLE_REGISTER_RATE = config("THROTTLE_REGISTER_RATE", default="5/min")
+THROTTLE_LOGIN_RATE = config("THROTTLE_LOGIN_RATE", default="10/min")
+THROTTLE_FORGOT_PASSWORD_RATE = config("THROTTLE_FORGOT_PASSWORD_RATE", default="3/min")
+
+# ─── Trade Bots ────────────────────────────────────────────────────────
+# Two flavours: "basic" (24h, 3% fee, 2-4% profit) and "expert"
+# (48h, 5% fee, 6-9% profit). Durations are seconds so they can be
+# shortened in dev/test (e.g. BOT_BASIC_DURATION_SECONDS=60).
+BOT_BASIC_FEE_PCT          = config("BOT_BASIC_FEE_PCT",          default=3,     cast=float)
+BOT_BASIC_DURATION_SECONDS = config("BOT_BASIC_DURATION_SECONDS", default=86400, cast=int)
+BOT_BASIC_PROFIT_MIN_PCT   = config("BOT_BASIC_PROFIT_MIN_PCT",   default=2,     cast=float)
+BOT_BASIC_PROFIT_MAX_PCT   = config("BOT_BASIC_PROFIT_MAX_PCT",   default=4,     cast=float)
+
+BOT_EXPERT_FEE_PCT          = config("BOT_EXPERT_FEE_PCT",          default=5,      cast=float)
+BOT_EXPERT_DURATION_SECONDS = config("BOT_EXPERT_DURATION_SECONDS", default=172800, cast=int)
+BOT_EXPERT_PROFIT_MIN_PCT   = config("BOT_EXPERT_PROFIT_MIN_PCT",   default=6,      cast=float)
+BOT_EXPERT_PROFIT_MAX_PCT   = config("BOT_EXPERT_PROFIT_MAX_PCT",   default=9,      cast=float)
+
+# Referral milestone rewards: every Nth successful L1 referral earns the
+# inviter a flat coin payout. (5 referrals → 1 H Coin, 10 → 1 more, …)
+REFERRAL_MILESTONE_SIZE = config("REFERRAL_MILESTONE_SIZE", default=5, cast=int)
+REFERRAL_MILESTONE_REWARD_HCOIN = config(
+    "REFERRAL_MILESTONE_REWARD_HCOIN", default=1, cast=int
+)
 
 # Blockchain
 TRON_API_KEY = config("TRON_API_KEY", default="")

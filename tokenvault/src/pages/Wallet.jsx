@@ -23,13 +23,20 @@ import { notificationsApi } from '../api'
 
 function txIcon(type) {
   if (type === 'deposit') return <ArrowUp size={16} className="text-emerald-400" />
-  if (type === 'withdraw') return <ArrowDown size={16} className="text-rose-400" />
+  if (type === 'withdraw' || type === 'bot_fee')
+    return <ArrowDown size={16} className="text-rose-400" />
+  if (type === 'bot_profit')
+    return <ArrowUp size={16} className="text-teal-300" />
+  // reward / commission / referral_milestone — fall through
   return <Star size={16} className="text-gold-400" />
 }
 
 function txTint(type) {
   if (type === 'deposit') return 'bg-emerald-500/15 border-emerald-400/30'
-  if (type === 'withdraw') return 'bg-rose-500/15 border-rose-400/30'
+  if (type === 'withdraw' || type === 'bot_fee')
+    return 'bg-rose-500/15 border-rose-400/30'
+  if (type === 'bot_profit')
+    return 'bg-teal-500/15 border-teal-400/30'
   return 'bg-gold-500/15 border-gold-400/30'
 }
 
@@ -60,13 +67,49 @@ export default function WalletPage() {
   const rewardReady =
     wallet.rewardActive && wallet.rewardEndTime && wallet.rewardEndTime <= Date.now()
 
+  // === Reward cycle copy + progress ===
+  // Default to 15 days × 20% so the card has labels even before /reward/cycle
+  // returns. Once the cycle (or no-cycle preview) loads, prefer the live values.
+  const cycle = wallet.cycle || {}
+  const FIFTEEN_DAYS_MS = 15 * 24 * 3600 * 1000
+  const cycleDurationMs = Number(cycle.durationMs) || FIFTEEN_DAYS_MS
+  const rewardDurationDays = Math.round(cycleDurationMs / (24 * 3600 * 1000))
+  const rewardPercent = Number(cycle.rewardPercent) || 20
+  const rewardTokens = Number(cycle.rewardTokens || 0)
+  const rewardAmountLabel = rewardTokens
+    ? rewardTokens.toLocaleString(undefined, { maximumFractionDigits: 4 })
+    : ''
+  const rewardProgressPct = wallet.rewardEndTime
+    ? Math.max(
+        0,
+        Math.min(
+          100,
+          ((cycleDurationMs - (wallet.rewardEndTime - Date.now())) / cycleDurationMs) * 100,
+        ),
+      )
+    : 0
+
+  // === Activation eligibility ===
+  // Backend tells us whether the user can activate AND why not (each
+  // reason is { code, message }). Multiple reasons can fire at once.
+  const canActivate = cycle.canActivate !== false  // default true so older clients still see button enabled
+  const ineligibilityReasons = Array.isArray(cycle.ineligibilityReasons)
+    ? cycle.ineligibilityReasons
+    : []
+
   const onActivate = async () => {
     setBusy(true)
     try {
       await activateReward()
       showToast('Reward cycle activated!', 'success')
     } catch (e) {
-      showToast(e?.message || 'Could not activate cycle', 'error')
+      // Backend may return multiple reasons (e.g. balance AND no referral).
+      const reasons = e?.data?.reasons
+      if (Array.isArray(reasons) && reasons.length) {
+        reasons.forEach((r) => showToast(r.message, 'error'))
+      } else {
+        showToast(e?.message || 'Could not activate cycle', 'error')
+      }
     } finally { setBusy(false) }
   }
 
@@ -134,19 +177,50 @@ export default function WalletPage() {
         transition={{ delay: 0.1, duration: 0.4 }}
         className="mt-3 rounded-2xl border border-gold-400/40 bg-gradient-to-br from-gold-500/10 to-space-700 p-3.5"
       >
-        <div className="flex items-center gap-1.5 mb-2">
-          <Gift size={13} className="text-gold-400" />
-          <span className="text-[11px] font-semibold text-gold-300 uppercase tracking-wider">Next Reward</span>
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-1.5">
+            <Gift size={13} className="text-gold-400" />
+            <span className="text-[11px] font-semibold text-gold-300 uppercase tracking-wider">Next Reward</span>
+          </div>
+          {rewardAmountLabel && (
+            <span className="font-mono text-[12px] font-bold text-gold-300">
+              +{rewardAmountLabel} H
+            </span>
+          )}
         </div>
+
         {!wallet.rewardActive ? (
-          <button
-            type="button"
-            onClick={onActivate}
-            disabled={busy}
-            className="w-full h-9 rounded-full bg-gold-500 hover:bg-gold-400 text-amber-950 font-semibold text-sm shadow-gold-glow active:scale-[0.98] transition disabled:opacity-60"
-          >
-            {busy ? 'Activating…' : 'Activate Reward Cycle'}
-          </button>
+          <>
+            <p className="text-[11px] text-gray-400 mb-2 leading-snug">
+              Earn <span className="font-semibold text-gold-300">{rewardPercent}%</span> of your
+              balance, claimable in {rewardDurationDays} days.
+            </p>
+
+            {/* Pre-activation requirement list — only shown if any reason is failing. */}
+            {!canActivate && ineligibilityReasons.length > 0 && (
+              <ul className="mb-2.5 space-y-1">
+                {ineligibilityReasons.map((r) => (
+                  <li
+                    key={r.code}
+                    className="flex items-start gap-1.5 text-[11px] text-rose-300 leading-snug"
+                  >
+                    <span className="mt-[1px] shrink-0">⚠</span>
+                    <span>{r.message}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <button
+              type="button"
+              onClick={onActivate}
+              disabled={busy || !canActivate}
+              title={!canActivate ? ineligibilityReasons.map((r) => r.message).join(' ') : undefined}
+              className="w-full h-9 rounded-full bg-gold-500 hover:bg-gold-400 text-amber-950 font-semibold text-sm shadow-gold-glow active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {busy ? 'Activating…' : 'Activate Reward Cycle'}
+            </button>
+          </>
         ) : rewardReady ? (
           <motion.button
             type="button"
@@ -156,23 +230,15 @@ export default function WalletPage() {
             transition={{ duration: 1.4, repeat: Infinity }}
             className="w-full h-9 rounded-full bg-gold-500 text-amber-950 font-semibold text-sm shadow-gold-glow disabled:opacity-60"
           >
-            {busy ? 'Claiming…' : 'Claim Reward'}
+            {busy ? 'Claiming…' : `Claim ${rewardAmountLabel || ''} H Coins`}
           </motion.button>
         ) : (
           <>
-            <Countdown endTime={wallet.rewardEndTime} variant="gold" hideDays compact />
+            <Countdown endTime={wallet.rewardEndTime} variant="gold" compact />
             <div className="mt-2.5 h-1 rounded-full bg-space-600 overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-gold-400 to-gold-500 transition-all"
-                style={{
-                  width: `${
-                    100 -
-                    Math.min(
-                      100,
-                      ((wallet.rewardEndTime - Date.now()) / (1000 * 60 * 60 * 24)) * 100,
-                    )
-                  }%`,
-                }}
+                style={{ width: `${rewardProgressPct}%` }}
                 key={tick}
               />
             </div>

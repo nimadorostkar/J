@@ -45,15 +45,17 @@ def _client_ip(request):
 
 
 class RegisterThrottle(AnonRateThrottle):
-    rate = "5/min"
+    # Configurable via env so you can crank it up during testing (e.g. to
+    # test referral milestones which need a burst of registrations).
+    rate = getattr(settings, "THROTTLE_REGISTER_RATE", "5/min")
 
 
 class LoginThrottle(AnonRateThrottle):
-    rate = "10/min"
+    rate = getattr(settings, "THROTTLE_LOGIN_RATE", "10/min")
 
 
 class ForgotPasswordThrottle(AnonRateThrottle):
-    rate = "3/min"
+    rate = getattr(settings, "THROTTLE_FORGOT_PASSWORD_RATE", "3/min")
 
 
 class RegisterView(APIView):
