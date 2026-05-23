@@ -35,6 +35,9 @@ class PlatformConfigView(APIView):
             "minDepositUsdt": settings.MIN_DEPOSIT_USDT,
             "withdrawalFeeUsdt": settings.WITHDRAWAL_FEE_USDT,
             "rewardDurationHours": settings.REWARD_DURATION_HOURS,
+            "rewardDurationDays": settings.REWARD_DURATION_DAYS,
+            "rewardPercent": settings.REWARD_PERCENT,
+            "rewardMinHcoin": settings.REWARD_MIN_HCOIN,
             "rewardAmountHcoin": settings.REWARD_AMOUNT_HCOIN,
             "referralCommission": {
                 "l1Percent": settings.REFERRAL_L1_COMMISSION_PCT,

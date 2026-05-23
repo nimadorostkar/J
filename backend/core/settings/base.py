@@ -109,6 +109,26 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# WhiteNoise — serve static files via Django/Gunicorn so admin CSS works
+# on :8000 (bypassing nginx). If the package isn't installed yet (image
+# hasn't been rebuilt with the new requirements.txt), gracefully fall back
+# to Django's default storage so the container still boots.
+try:
+    import whitenoise  # noqa: F401
+    MIDDLEWARE.insert(
+        MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,
+        "whitenoise.middleware.WhiteNoiseMiddleware",
+    )
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
+except Exception:
+    # whitenoise not installed yet — admin CSS will only work via nginx.
+    pass
+
 # S3 storage
 USE_S3 = config("USE_S3", default=False, cast=bool)
 if USE_S3:
@@ -170,6 +190,9 @@ SIMPLE_JWT = {
 # CORS
 CORS_ALLOWED_ORIGINS = config("ALLOWED_ORIGINS", default="http://localhost:3000", cast=Csv())
 CORS_ALLOW_CREDENTIALS = True
+# Make sure media / static paths are CORS-enabled too so <img src> works
+# when the SPA is hosted on a different origin than Django.
+CORS_URLS_REGEX = r"^/(api|media|static)/.*$"
 
 # Redis / Channels / Celery
 REDIS_URL = config("REDIS_URL", default="redis://redis:6379/0")
@@ -216,6 +239,13 @@ WITHDRAWAL_AUTO_APPROVE = config("WITHDRAWAL_AUTO_APPROVE", default=False, cast=
 REWARD_DURATION_HOURS = config("REWARD_DURATION_HOURS", default=12, cast=int)
 REWARD_AMOUNT_HCOIN = config("REWARD_AMOUNT_HCOIN", default=5, cast=int)
 GLOBAL_CYCLE_DAYS = config("GLOBAL_CYCLE_DAYS", default=30, cast=int)
+
+# Per-user reward cycle: lasts REWARD_DURATION_DAYS, pays out REWARD_PERCENT
+# of the user's H Coin balance at activation time (with REWARD_MIN_HCOIN as
+# a floor so brand-new users still get something when they first activate).
+REWARD_DURATION_DAYS = config("REWARD_DURATION_DAYS", default=15, cast=int)
+REWARD_PERCENT = config("REWARD_PERCENT", default=20, cast=int)
+REWARD_MIN_HCOIN = config("REWARD_MIN_HCOIN", default=1, cast=int)
 
 REFERRAL_L1_COMMISSION_PCT = config("REFERRAL_L1_COMMISSION_PCT", default=5, cast=int)
 REFERRAL_L2_COMMISSION_PCT = config("REFERRAL_L2_COMMISSION_PCT", default=3, cast=int)

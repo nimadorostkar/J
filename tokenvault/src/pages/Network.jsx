@@ -1,56 +1,98 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Copy } from 'lucide-react'
 import StarField from '../components/StarField.jsx'
 import NodePopup from '../components/NodePopup.jsx'
-import { L1_NODES, L2_NODES } from '../data/network.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import { referralsApi, resolveMediaUrl } from '../api'
 
 const RADIUS_L1 = 130
 const RADIUS_L2 = 220
 
-function initials(name) {
-  return name.split(' ').map((p) => p[0]).slice(0, 2).join('')
+function initials(name = '') {
+  return name.split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase()
 }
 
 function polar(cx, cy, r, angle) {
   return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)]
 }
 
+function toUiNode(row, level) {
+  const u = row.invitedUser || row.invited_user || {}
+  const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'Member'
+  return {
+    id: row.id,
+    level,
+    name,
+    avatar: resolveMediaUrl(u.avatarUrl),
+    joined: u.joinedAt ? new Date(u.joinedAt).toISOString().slice(0, 10) : '',
+    status: 'Active',
+    commission: row.totalCommissionEarnedHcoin ?? '0',
+    parent: row.parent || null,
+  }
+}
+
 export default function Network() {
   const { user } = useAuth()
   const { showToast } = useToast()
   const [selected, setSelected] = useState(null)
+  const [l1, setL1] = useState([])
+  const [l2, setL2] = useState([])
+  const [shareUrl, setShareUrl] = useState('')
+  const [code, setCode] = useState(user?.referralCode || '')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    Promise.allSettled([referralsApi.network(), referralsApi.code()])
+      .then(([net, codeRes]) => {
+        if (cancelled) return
+        if (net.status === 'fulfilled' && net.value) {
+          setL1((net.value.level1 || []).map((r) => toUiNode(r, 1)))
+          setL2((net.value.level2 || []).map((r) => toUiNode(r, 2)))
+        }
+        if (codeRes.status === 'fulfilled' && codeRes.value) {
+          setCode(codeRes.value.code)
+          setShareUrl(codeRes.value.shareUrl || '')
+        }
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
 
   const VIEWBOX = 520
   const CENTER = VIEWBOX / 2
 
+  // Avatar URL for the center node. Falls back to initials if missing or 404.
+  const avatarHref = user?.avatarUrl ? resolveMediaUrl(user.avatarUrl) : null
+
   const l1Positions = useMemo(
     () =>
-      L1_NODES.map((node, i) => {
-        const angle = (i / L1_NODES.length) * Math.PI * 2 - Math.PI / 2
+      l1.map((node, i) => {
+        const angle = (i / Math.max(1, l1.length)) * Math.PI * 2 - Math.PI / 2
         const [x, y] = polar(CENTER, CENTER, RADIUS_L1, angle)
         return { ...node, x, y, angle }
       }),
-    [],
+    [l1, CENTER],
   )
 
   const l2Positions = useMemo(() => {
-    return L2_NODES.map((node, i) => {
-      const parent = l1Positions.find((p) => p.id === node.parent)
-      const angle = (i / L2_NODES.length) * Math.PI * 2 - Math.PI / 2
+    return l2.map((node, i) => {
+      const parent = l1Positions[i % Math.max(1, l1Positions.length)] || null
+      const angle = (i / Math.max(1, l2.length)) * Math.PI * 2 - Math.PI / 2
       const [x, y] = polar(CENTER, CENTER, RADIUS_L2, angle)
       return { ...node, x, y, parent }
     })
-  }, [l1Positions])
+  }, [l2, l1Positions, CENTER])
 
-  const empty = L1_NODES.length === 0
+  const empty = !loading && l1.length === 0
 
   const copyInvite = async () => {
     try {
-      await navigator.clipboard.writeText(user?.referralCode || 'TOKEN2024')
-      showToast('Invite code copied', 'success')
+      await navigator.clipboard.writeText(shareUrl || code || '')
+      showToast('Invite copied', 'success')
     } catch {
       showToast('Copy failed', 'error')
     }
@@ -63,45 +105,28 @@ export default function Network() {
       {/* Counter pills */}
       <div className="relative z-20 flex items-center justify-center gap-2 pt-5 px-5">
         <span className="px-3 py-1 rounded-full bg-teal-500/15 border border-teal-400/40 text-teal-300 text-xs font-medium">
-          Level 1 · {L1_NODES.length} members
+          Level 1 · {l1.length} members
         </span>
         <span className="px-3 py-1 rounded-full bg-purple-500/15 border border-purple-400/40 text-purple-300 text-xs font-medium">
-          Level 2 · {L2_NODES.length} members
+          Level 2 · {l2.length} members
         </span>
       </div>
 
       {/* Galaxy */}
       <div className="relative z-10 mt-4 flex items-center justify-center">
         <svg viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`} className="w-full max-w-[480px] aspect-square">
-          {/* Ghost orbit rings */}
-          <circle
-            cx={CENTER} cy={CENTER} r={RADIUS_L1}
-            fill="none" stroke="rgba(45,212,191,0.25)" strokeDasharray="4 6" strokeWidth="1"
-          />
-          <circle
-            cx={CENTER} cy={CENTER} r={RADIUS_L2}
-            fill="none" stroke="rgba(168,85,247,0.2)" strokeDasharray="3 7" strokeWidth="1"
-          />
+          <circle cx={CENTER} cy={CENTER} r={RADIUS_L1} fill="none" stroke="rgba(45,212,191,0.25)" strokeDasharray="4 6" strokeWidth="1" />
+          <circle cx={CENTER} cy={CENTER} r={RADIUS_L2} fill="none" stroke="rgba(168,85,247,0.2)" strokeDasharray="3 7" strokeWidth="1" />
 
-          {/* L1 group with rotation */}
           <g style={{ transformOrigin: `${CENTER}px ${CENTER}px` }} className="animate-spin-slow">
             {!empty && l1Positions.map((n) => (
-              <line
-                key={`line-${n.id}`}
-                x1={CENTER} y1={CENTER} x2={n.x} y2={n.y}
-                stroke="rgba(45,212,191,0.45)" strokeWidth="1" strokeDasharray="4 4"
-              >
+              <line key={`line-${n.id}`} x1={CENTER} y1={CENTER} x2={n.x} y2={n.y}
+                stroke="rgba(45,212,191,0.45)" strokeWidth="1" strokeDasharray="4 4">
                 <animate attributeName="stroke-dashoffset" from="0" to="-32" dur="3s" repeatCount="indefinite" />
               </line>
             ))}
             {l1Positions.map((n) => (
-              <g
-                key={n.id}
-                style={{ transformOrigin: `${n.x}px ${n.y}px` }}
-                className="cursor-pointer"
-                onClick={() => setSelected(n)}
-              >
-                {/* Counter-rotate so the labels stay upright */}
+              <g key={n.id} style={{ transformOrigin: `${n.x}px ${n.y}px` }} className="cursor-pointer" onClick={() => setSelected(n)}>
                 <g style={{ transformOrigin: `${n.x}px ${n.y}px` }} className="animate-spin-slower">
                   <circle cx={n.x} cy={n.y} r="22" fill="rgba(45,212,191,0.2)" stroke="#2DD4BF" strokeWidth="1.5" />
                   <text x={n.x} y={n.y + 4} textAnchor="middle" fill="#5EEAD4" fontSize="11" fontWeight="700">
@@ -112,14 +137,10 @@ export default function Network() {
             ))}
           </g>
 
-          {/* L2 group with rotation (opposite) */}
           <g style={{ transformOrigin: `${CENTER}px ${CENTER}px` }} className="animate-spin-slower">
             {l2Positions.map((n) => (
-              <line
-                key={`line2-${n.id}`}
-                x1={n.parent?.x ?? CENTER} y1={n.parent?.y ?? CENTER} x2={n.x} y2={n.y}
-                stroke="rgba(168,85,247,0.35)" strokeWidth="0.75" strokeDasharray="3 5"
-              >
+              <line key={`line2-${n.id}`} x1={n.parent?.x ?? CENTER} y1={n.parent?.y ?? CENTER} x2={n.x} y2={n.y}
+                stroke="rgba(168,85,247,0.35)" strokeWidth="0.75" strokeDasharray="3 5">
                 <animate attributeName="stroke-dashoffset" from="0" to="-24" dur="4s" repeatCount="indefinite" />
               </line>
             ))}
@@ -133,17 +154,35 @@ export default function Network() {
             ))}
           </g>
 
-          {/* Center user node */}
+          {/* Center user node — avatar (clipped to circle) + pulsing ring */}
           <g>
-            <circle
-              cx={CENTER} cy={CENTER} r="34"
-              fill="rgba(45,212,191,0.18)" stroke="#2DD4BF" strokeWidth="2"
-            >
+            <defs>
+              <clipPath id="centerAvatarClip">
+                <circle cx={CENTER} cy={CENTER} r="32" />
+              </clipPath>
+            </defs>
+            {/* glow background */}
+            <circle cx={CENTER} cy={CENTER} r="34" fill="rgba(45,212,191,0.18)" stroke="#2DD4BF" strokeWidth="2">
               <animate attributeName="r" values="34;36;34" dur="2.6s" repeatCount="indefinite" />
             </circle>
-            <text x={CENTER} y={CENTER + 5} textAnchor="middle" fill="#FFFFFF" fontSize="14" fontWeight="700">
-              {initials(`${user?.firstName || 'Y'} ${user?.lastName || 'OU'}`)}
-            </text>
+            {avatarHref ? (
+              <image
+                href={avatarHref}
+                xlinkHref={avatarHref}
+                x={CENTER - 32}
+                y={CENTER - 32}
+                width="64"
+                height="64"
+                preserveAspectRatio="xMidYMid slice"
+                clipPath="url(#centerAvatarClip)"
+              />
+            ) : (
+              <text x={CENTER} y={CENTER + 5} textAnchor="middle" fill="#FFFFFF" fontSize="14" fontWeight="700">
+                {initials(`${user?.firstName || 'Y'} ${user?.lastName || 'OU'}`)}
+              </text>
+            )}
+            {/* outline on top of the image so the border stays visible */}
+            <circle cx={CENTER} cy={CENTER} r="32" fill="none" stroke="#2DD4BF" strokeWidth="2" pointerEvents="none" />
           </g>
         </svg>
       </div>
@@ -153,18 +192,18 @@ export default function Network() {
           <div className="bg-space-700/80 backdrop-blur-xl border border-space-500 rounded-2xl p-6 text-center max-w-xs">
             <h3 className="font-semibold text-white">Invite friends to grow your network</h3>
             <p className="text-xs text-gray-400 mt-1">Share your code to start earning rewards together.</p>
+            <p className="mt-2 font-mono text-teal-300">{code}</p>
             <button
               type="button"
               onClick={copyInvite}
               className="mt-4 h-11 px-5 rounded-full bg-teal-500 text-space-900 font-semibold inline-flex items-center gap-2 shadow-teal-glow"
             >
-              <Copy size={16} /> Copy Invite Code
+              <Copy size={16} /> Copy Invite
             </button>
           </div>
         </div>
       )}
 
-      {/* Invite shortcut */}
       {!empty && (
         <div className="absolute left-1/2 -translate-x-1/2 bottom-20 z-20">
           <motion.button
@@ -173,7 +212,7 @@ export default function Network() {
             onClick={copyInvite}
             className="flex items-center gap-2 h-10 px-4 rounded-full bg-space-700/80 backdrop-blur-xl border border-space-500 text-sm text-teal-300"
           >
-            <Copy size={14} /> Copy invite code
+            <Copy size={14} /> Copy invite ({code})
           </motion.button>
         </div>
       )}

@@ -1,5 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+
+// Map backend field names (camelCase from DRF serializers) to local form keys
+function mapKey(k) {
+  if (k === 'inviteCode') return 'invite'
+  return k
+}
+
 import { motion } from 'framer-motion'
 import StarField from '../components/StarField.jsx'
 import Field from '../components/Field.jsx'
@@ -34,28 +41,41 @@ export default function Register() {
     if (!form.email) e.email = 'Email is required'
     else if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = 'Enter a valid email'
     if (!form.password) e.password = 'Required'
-    else if (form.password.length < 6) e.password = 'Min 6 characters'
+    else if (form.password.length < 8) e.password = 'Min 8 characters'
     if (form.confirm !== form.password) e.confirm = 'Passwords do not match'
     if (!form.invite.trim()) e.invite = 'Invite code is required'
+    else if (!/^[A-Za-z0-9]{8}$/.test(form.invite.trim())) e.invite = 'Code must be 8 alphanumeric chars'
     setErrors(e)
     return Object.keys(e).length === 0
   }
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
     setSubmitting(true)
     try {
-      register({
+      await register({
         firstName: form.firstName,
         lastName: form.lastName,
         email: form.email,
-        inviteCode: form.invite.trim(),
+        password: form.password,
+        inviteCode: form.invite.trim().toUpperCase(),
       })
       showToast('Account created!', 'success')
       navigate('/home', { replace: true })
     } catch (err) {
-      showToast(err.message || 'Registration failed', 'error')
+      // Try to surface field-level errors from DRF
+      const data = err?.data
+      if (data && typeof data === 'object') {
+        const fieldErrors = {}
+        for (const [k, v] of Object.entries(data)) {
+          if (Array.isArray(v)) fieldErrors[mapKey(k)] = String(v[0])
+          else if (typeof v === 'string') fieldErrors[mapKey(k)] = v
+          else if (v && typeof v === 'object' && v.message) fieldErrors[mapKey(k)] = v.message
+        }
+        if (Object.keys(fieldErrors).length) setErrors((er) => ({ ...er, ...fieldErrors }))
+      }
+      showToast(err?.message || 'Registration failed', 'error')
     } finally {
       setSubmitting(false)
     }

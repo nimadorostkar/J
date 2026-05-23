@@ -1,121 +1,160 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { walletApi, rewardsApi } from '../api'
+import { useAuth } from './AuthContext.jsx'
 
 const WalletContext = createContext(null)
 
-const DEFAULT_TRANSACTIONS = [
-  { id: 1, type: 'deposit', desc: 'USDT Deposit', tokens: 5, usdt: 50.0, date: '2024-01-20 14:32' },
-  { id: 2, type: 'reward', desc: 'Cycle Reward', tokens: 2, usdt: 20.0, date: '2024-01-18 09:00' },
-  { id: 3, type: 'withdraw', desc: 'Withdrawal', tokens: -3, usdt: 30.0, date: '2024-01-15 16:45' },
-  { id: 4, type: 'deposit', desc: 'USDT Deposit', tokens: 10, usdt: 100.0, date: '2024-01-12 11:15' },
-  { id: 5, type: 'reward', desc: 'Referral Bonus', tokens: 1, usdt: 10.0, date: '2024-01-10 18:20' },
-  { id: 6, type: 'deposit', desc: 'USDT Deposit', tokens: 4, usdt: 40.0, date: '2024-01-08 08:42' },
-  { id: 7, type: 'withdraw', desc: 'Withdrawal', tokens: -2, usdt: 20.0, date: '2024-01-05 13:55' },
-  { id: 8, type: 'reward', desc: 'Cycle Reward', tokens: 3, usdt: 30.0, date: '2024-01-02 09:00' },
-]
+// Normalize a backend transaction (TransactionSerializer) to what the UI wants
+function normalizeTransaction(t) {
+  // Backend likely emits snake_case: id, type, amount_hcoin, amount_usdt, status, created_at...
+  // We translate to: { id, type, desc, tokens, usdt, date, status }
+  const amountH = Number(t.amount_hcoin ?? t.amountHcoin ?? 0)
+  const amountU = Number(t.amount_usdt ?? t.amountUsdt ?? 0)
+  const type = t.type || 'reward'
+  const signed = type === 'withdraw' ? -Math.abs(amountH) : Math.abs(amountH)
+  const desc =
+    type === 'deposit' ? 'USDT Deposit'
+    : type === 'withdraw' ? 'Withdrawal'
+    : type === 'commission' ? 'Referral Bonus'
+    : 'Cycle Reward'
+  const d = new Date(t.created_at || t.createdAt || t.date || Date.now())
+  return {
+    id: t.id,
+    type,
+    desc,
+    tokens: signed,
+    usdt: amountU,
+    date: d.toISOString().slice(0, 16).replace('T', ' '),
+    status: t.status,
+    network: t.network,
+    raw: t,
+  }
+}
 
-const STORAGE_KEY = 'houston.wallet'
-
-const DEFAULT_WALLET = {
-  hCoins: 47,
-  usdtBalance: 470.0,
+const EMPTY_WALLET = {
+  hCoins: 0,
+  usdtBalance: 0,
+  usdtEquivalent: 0,
+  conversionRate: 10,
   rewardActive: false,
   rewardEndTime: null,
-  transactions: DEFAULT_TRANSACTIONS,
+  rewardDurationHours: 12,
+  hasDeposit: false,
+  hasReferral: false,
+  transactions: [],
+  cycle: null,
+  // platform/global cycle
+  globalCycleEnd: null,
 }
 
 export function WalletProvider({ children }) {
-  const [wallet, setWallet] = useState(() => {
+  const { user } = useAuth()
+  const [wallet, setWallet] = useState(EMPTY_WALLET)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  // Helper to fetch /wallet + /reward/cycle + /wallet/transactions in parallel
+  const reload = useCallback(async () => {
+    if (!user) return
+    setLoading(true)
+    setError(null)
     try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      return raw ? { ...DEFAULT_WALLET, ...JSON.parse(raw) } : DEFAULT_WALLET
-    } catch {
-      return DEFAULT_WALLET
+      const [w, tx, cycle, gc] = await Promise.allSettled([
+        walletApi.get(),
+        walletApi.transactions(),
+        rewardsApi.cycle(),
+        rewardsApi.globalCycle(),
+      ])
+
+      setWallet((prev) => {
+        const next = { ...prev }
+        if (w.status === 'fulfilled' && w.value) {
+          const v = w.value
+          next.hCoins = Number(v.hCoins ?? 0)
+          next.usdtBalance = Number(v.usdtBalance ?? 0)
+          next.usdtEquivalent = Number(v.usdtEquivalent ?? 0)
+          next.conversionRate = Number(v.conversionRate ?? 10)
+          next.rewardActive = Boolean(v.rewardActive)
+          next.rewardEndTime = v.rewardEndTime ? new Date(v.rewardEndTime).getTime() : null
+          next.rewardDurationHours = Number(v.rewardDurationHours ?? 12)
+          next.hasDeposit = Boolean(v.hasDeposit)
+          next.hasReferral = Boolean(v.hasReferral)
+        }
+        if (tx.status === 'fulfilled' && tx.value) {
+          const rows = Array.isArray(tx.value) ? tx.value : tx.value.results || []
+          next.transactions = rows.map(normalizeTransaction)
+        }
+        if (cycle.status === 'fulfilled' && cycle.value) {
+          next.cycle = cycle.value
+          if (cycle.value.endTime) {
+            next.rewardEndTime = new Date(cycle.value.endTime).getTime()
+          }
+          if (typeof cycle.value.active === 'boolean') {
+            next.rewardActive = cycle.value.active
+          }
+        }
+        if (gc.status === 'fulfilled' && gc.value && gc.value.endTime) {
+          next.globalCycleEnd = new Date(gc.value.endTime).getTime()
+        }
+        return next
+      })
+    } catch (e) {
+      setError(e?.message || 'Failed to load wallet')
+    } finally {
+      setLoading(false)
     }
-  })
+  }, [user])
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(wallet))
-  }, [wallet])
+    if (user) reload()
+    else setWallet(EMPTY_WALLET)
+  }, [user, reload])
 
-  const activateReward = useCallback(() => {
+  const activateReward = useCallback(async () => {
+    const c = await rewardsApi.activate()
     setWallet((w) => ({
       ...w,
       rewardActive: true,
-      rewardEndTime: Date.now() + 1000 * 60 * 60 * 24, // 24h cycle
+      rewardEndTime: c?.endTime ? new Date(c.endTime).getTime() : w.rewardEndTime,
+      cycle: c,
     }))
+    return c
   }, [])
 
-  const claimReward = useCallback(() => {
-    setWallet((w) => {
-      const tokens = 2
-      return {
-        ...w,
-        hCoins: w.hCoins + tokens,
-        usdtBalance: w.usdtBalance + tokens * 10,
-        rewardActive: false,
-        rewardEndTime: null,
-        transactions: [
-          {
-            id: Date.now(),
-            type: 'reward',
-            desc: 'Cycle Reward',
-            tokens,
-            usdt: tokens * 10,
-            date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-          },
-          ...w.transactions,
-        ],
-      }
-    })
-  }, [])
+  const claimReward = useCallback(async () => {
+    const idem = `claim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const res = await rewardsApi.claim(idem)
+    // Refresh balances + tx list
+    await reload()
+    return res
+  }, [reload])
 
-  const deposit = useCallback((usdtAmount) => {
-    const tokens = Math.floor(usdtAmount / 10)
-    if (tokens <= 0) return
-    setWallet((w) => ({
-      ...w,
-      hCoins: w.hCoins + tokens,
-      usdtBalance: w.usdtBalance + tokens * 10,
-      transactions: [
-        {
-          id: Date.now(),
-          type: 'deposit',
-          desc: 'USDT Deposit',
-          tokens,
-          usdt: tokens * 10,
-          date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-        },
-        ...w.transactions,
-      ],
-    }))
-  }, [])
+  const initDeposit = useCallback(async (payload) => {
+    const idem = `dep-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const tx = await walletApi.initDeposit({ ...payload, idempotencyKey: idem })
+    await reload()
+    return tx
+  }, [reload])
 
-  const withdraw = useCallback((tokens) => {
-    if (tokens <= 0) return
-    setWallet((w) => {
-      if (tokens > w.hCoins) return w
-      return {
-        ...w,
-        hCoins: w.hCoins - tokens,
-        usdtBalance: w.usdtBalance - tokens * 10,
-        transactions: [
-          {
-            id: Date.now(),
-            type: 'withdraw',
-            desc: 'Withdrawal',
-            tokens: -tokens,
-            usdt: tokens * 10,
-            date: new Date().toISOString().slice(0, 16).replace('T', ' '),
-          },
-          ...w.transactions,
-        ],
-      }
-    })
-  }, [])
+  const initWithdraw = useCallback(async (payload) => {
+    const idem = `wd-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const tx = await walletApi.initWithdraw({ ...payload, idempotencyKey: idem })
+    await reload()
+    return tx
+  }, [reload])
 
   return (
     <WalletContext.Provider
-      value={{ wallet, activateReward, claimReward, deposit, withdraw }}
+      value={{
+        wallet,
+        loading,
+        error,
+        reload,
+        activateReward,
+        claimReward,
+        initDeposit,
+        initWithdraw,
+      }}
     >
       {children}
     </WalletContext.Provider>

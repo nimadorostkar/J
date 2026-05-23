@@ -1,7 +1,7 @@
 # === FILE: backend/rewards/views.py ===
 """Reward cycle endpoints: read, activate, claim, global."""
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_DOWN
 
 from django.conf import settings
 from django.db import transaction as db_tx
@@ -18,6 +18,24 @@ from wallet.models import Wallet
 
 from .models import GlobalCycle, RewardCycle
 from .serializers import GlobalCycleSerializer, RewardCycleSerializer
+
+
+def _cycle_duration() -> timedelta:
+    """Length of a single reward cycle (default: 15 days)."""
+    return timedelta(days=settings.REWARD_DURATION_DAYS)
+
+
+def _compute_reward_amount(wallet) -> Decimal:
+    """
+    Reward = REWARD_PERCENT % of the wallet's current H Coin balance,
+    floored at REWARD_MIN_HCOIN so users with empty wallets still get
+    something on their first activation.
+    """
+    balance = wallet.h_coin_balance or Decimal(0)
+    pct = Decimal(settings.REWARD_PERCENT) / Decimal(100)
+    raw = (balance * pct).quantize(Decimal("0.00000001"), rounding=ROUND_DOWN)
+    floor = Decimal(settings.REWARD_MIN_HCOIN)
+    return max(raw, floor)
 
 
 def _ensure_global_cycle():
@@ -48,12 +66,17 @@ class RewardCycleView(APIView):
         wallet = Wallet.objects.filter(user=request.user).first()
         if cycle:
             return Response(RewardCycleSerializer(cycle).data)
+        # No active cycle — preview what the next one would look like.
+        duration = _cycle_duration()
+        preview_amount = _compute_reward_amount(wallet) if wallet else Decimal(settings.REWARD_MIN_HCOIN)
         return Response({
             "active": False,
             "status": None,
             "endTime": None,
-            "durationMs": (wallet.reward_duration_hours if wallet else settings.REWARD_DURATION_HOURS) * 3600 * 1000,
-            "rewardTokens": str(Decimal(settings.REWARD_AMOUNT_HCOIN)),
+            "durationMs": int(duration.total_seconds() * 1000),
+            "durationDays": settings.REWARD_DURATION_DAYS,
+            "rewardPercent": settings.REWARD_PERCENT,
+            "rewardTokens": str(preview_amount),
         })
 
 
@@ -74,15 +97,23 @@ class ActivateCycleView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             now = timezone.now()
+            duration = _cycle_duration()
+            amount = _compute_reward_amount(wallet)
             cycle = RewardCycle.objects.create(
                 user=request.user,
-                ends_at=now + timedelta(hours=wallet.reward_duration_hours),
-                reward_amount_hcoin=Decimal(settings.REWARD_AMOUNT_HCOIN),
+                ends_at=now + duration,
+                reward_amount_hcoin=amount,
                 status=RewardCycle.STATUS_ACTIVE,
             )
             wallet.reward_active = True
             wallet.reward_end_time = cycle.ends_at
             wallet.save(update_fields=["reward_active", "reward_end_time", "updated_at"])
+            log_audit(
+                "reward_cycle_activate", user=request.user,
+                cycle_id=str(cycle.id), amount=str(amount),
+                duration_days=settings.REWARD_DURATION_DAYS,
+                balance_at_activation=str(wallet.h_coin_balance),
+            )
         return Response(RewardCycleSerializer(cycle).data, status=status.HTTP_201_CREATED)
 
 

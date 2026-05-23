@@ -1,68 +1,75 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { authApi, usersApi, tokenStore, onAuthChange, logoutLocally } from '../api'
 
 const AuthContext = createContext(null)
 
-const DEFAULT_USER = {
-  id: 'usr_001',
-  firstName: 'Alex',
-  lastName: 'Morgan',
-  email: 'alex@example.com',
-  mobile: '+1 555 0100',
-  country: 'United States',
-  referralCode: 'ALEX2024',
-  hasDeposit: true,
-  hasReferral: true,
-  joinDate: '2024-01-15',
-}
-
-const STORAGE_KEY = 'houston.user'
-
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      return raw ? JSON.parse(raw) : null
-    } catch {
-      return null
-    }
-  })
+  const [user, setUser] = useState(null)
+  // 'idle' | 'loading' | 'ready'
+  const [status, setStatus] = useState('idle')
 
+  // On boot: if we have a refresh token, try to fetch the current user.
+  // (the api client will auto-refresh access if needed)
   useEffect(() => {
-    if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user))
-    else localStorage.removeItem(STORAGE_KEY)
-  }, [user])
-
-  const login = ({ email, password }) => {
-    if (!email || !password || password.length < 6) {
-      throw new Error('Invalid credentials')
+    const hasRefresh = !!tokenStore.getRefresh()
+    if (!hasRefresh) {
+      setStatus('ready')
+      return
     }
-    const next = { ...DEFAULT_USER, email }
-    setUser(next)
-    return next
-  }
+    setStatus('loading')
+    usersApi
+      .me()
+      .then((me) => setUser(me))
+      .catch(() => {
+        tokenStore.clear()
+        setUser(null)
+      })
+      .finally(() => setStatus('ready'))
+  }, [])
 
-  const register = (data) => {
-    const next = {
-      ...DEFAULT_USER,
-      firstName: data.firstName || DEFAULT_USER.firstName,
-      lastName: data.lastName || DEFAULT_USER.lastName,
-      email: data.email,
-      mobile: data.mobile || DEFAULT_USER.mobile,
-      country: data.country || DEFAULT_USER.country,
-      referralCode: (data.firstName?.toUpperCase() || 'USER') + '2024',
-      hasDeposit: false,
-      hasReferral: Boolean(data.inviteCode),
-      joinDate: new Date().toISOString().slice(0, 10),
-    }
-    setUser(next)
-    return next
-  }
+  // Listen for auto-logout from api client (e.g., refresh failed).
+  useEffect(() => {
+    return onAuthChange((evt) => {
+      if (evt.type === 'logout') setUser(null)
+    })
+  }, [])
 
-  const updateUser = (patch) => setUser((u) => (u ? { ...u, ...patch } : u))
-  const logout = () => setUser(null)
+  const login = useCallback(async ({ email, password }) => {
+    const data = await authApi.login({ email, password })
+    tokenStore.set(data.accessToken, data.refreshToken)
+    setUser(data.user)
+    return data.user
+  }, [])
+
+  const register = useCallback(async (payload) => {
+    const data = await authApi.register(payload)
+    tokenStore.set(data.accessToken, data.refreshToken)
+    setUser(data.user)
+    return data.user
+  }, [])
+
+  const logout = useCallback(async () => {
+    try { await authApi.logout() } catch {}
+    logoutLocally('user_logout')
+    setUser(null)
+  }, [])
+
+  const refreshUser = useCallback(async () => {
+    const me = await usersApi.me()
+    setUser(me)
+    return me
+  }, [])
+
+  const updateUser = useCallback(async (patch) => {
+    const next = await usersApi.updateMe(patch)
+    setUser((u) => ({ ...(u || {}), ...next }))
+    return next
+  }, [])
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{ user, status, login, register, logout, updateUser, refreshUser }}
+    >
       {children}
     </AuthContext.Provider>
   )

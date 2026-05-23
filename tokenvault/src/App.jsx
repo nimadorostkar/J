@@ -4,21 +4,34 @@ import { useAuth } from './context/AuthContext.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
+import ForgotPassword from './pages/ForgotPassword.jsx'
+import ResetPassword from './pages/ResetPassword.jsx'
+import VerifyEmail from './pages/VerifyEmail.jsx'
 import Home from './pages/Home.jsx'
 import Wallet from './pages/Wallet.jsx'
 import Network from './pages/Network.jsx'
 import Profile from './pages/Profile.jsx'
 
 function Protected({ children }) {
-  const { user } = useAuth()
+  const { user, status } = useAuth()
+  if (status === 'loading') return <BootSplash />
   if (!user) return <Navigate to="/login" replace />
   return children
 }
 
 function Public({ children }) {
-  const { user } = useAuth()
+  const { user, status } = useAuth()
+  if (status === 'loading') return <BootSplash />
   if (user) return <Navigate to="/home" replace />
   return children
+}
+
+function BootSplash() {
+  return (
+    <div className="min-h-[100dvh] grid place-items-center bg-space-900 text-teal-300">
+      <span className="text-sm">Loading…</span>
+    </div>
+  )
 }
 
 const pageVariants = {
@@ -69,6 +82,22 @@ export default function App() {
                   <PageShell><Register /></PageShell>
                 </Public>
               }
+            />
+            <Route
+              path="/forgot-password"
+              element={
+                <Public>
+                  <PageShell><ForgotPassword /></PageShell>
+                </Public>
+              }
+            />
+            <Route
+              path="/reset-password"
+              element={<PageShell><ResetPassword /></PageShell>}
+            />
+            <Route
+              path="/verify-email"
+              element={<PageShell><VerifyEmail /></PageShell>}
             />
             <Route
               path="/home"

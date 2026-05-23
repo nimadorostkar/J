@@ -1,24 +1,50 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Copy } from 'lucide-react'
 import BottomSheet from './BottomSheet.jsx'
 import Field from './Field.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import { useWallet } from '../context/WalletContext.jsx'
+import { walletApi } from '../api'
 
-const MOCK_ADDRESSES = {
-  'TRC-20': 'TXn8gkV4hYy7nP4cFmZ5g5jWqJ2YvK9ABc',
-  'ERC-20': '0xA9c3F2EeC7c9D5d4F38eB1234aB56cD7891234ef',
-}
+// Backend uses 'TRC20' / 'ERC20' (no dash). UI shows nicer label.
+const NETWORKS = [
+  { value: 'TRC20', label: 'TRC-20' },
+  { value: 'ERC20', label: 'ERC-20' },
+]
 
 export default function DepositModal({ open, onClose }) {
-  const [network, setNetwork] = useState('TRC-20')
+  const [network, setNetwork] = useState('TRC20')
   const [amount, setAmount] = useState('')
+  const [txHash, setTxHash] = useState('')
+  const [address, setAddress] = useState('')
+  const [minimum, setMinimum] = useState(10)
+  const [loadingAddr, setLoadingAddr] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const { showToast } = useToast()
-  const { deposit } = useWallet()
+  const { initDeposit, wallet } = useWallet()
+
+  // Fetch deposit address when network changes (and modal is open)
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setLoadingAddr(true)
+    walletApi
+      .depositAddress(network)
+      .then((res) => {
+        if (cancelled) return
+        setAddress(res?.address || '')
+        if (res?.minimum) setMinimum(Number(res.minimum))
+      })
+      .catch(() => { if (!cancelled) setAddress('') })
+      .finally(() => { if (!cancelled) setLoadingAddr(false) })
+    return () => { cancelled = true }
+  }, [open, network])
 
   const usdt = Number(amount) || 0
-  const coins = useMemo(() => Math.floor(usdt / 10), [usdt])
-  const address = MOCK_ADDRESSES[network]
+  const coins = useMemo(() => {
+    const rate = wallet?.conversionRate || 10
+    return rate > 0 ? Math.floor(usdt / rate) : 0
+  }, [usdt, wallet?.conversionRate])
 
   const copyAddr = async () => {
     try {
@@ -29,32 +55,40 @@ export default function DepositModal({ open, onClose }) {
     }
   }
 
-  const onConfirm = () => {
-    if (usdt < 10) {
-      showToast('Minimum 10 USDT', 'error')
+  const onConfirm = async () => {
+    if (!usdt || usdt < minimum) {
+      showToast(`Minimum ${minimum} USDT`, 'error')
       return
     }
-    deposit(usdt)
-    showToast(`Deposited ${coins} H Coins`, 'success')
-    setAmount('')
-    onClose?.()
+    setSubmitting(true)
+    try {
+      await initDeposit({ network, amountUsdt: String(usdt), txHash: txHash.trim() || undefined })
+      showToast('Deposit submitted — pending confirmation', 'success')
+      setAmount('')
+      setTxHash('')
+      onClose?.()
+    } catch (e) {
+      showToast(e?.message || 'Deposit failed', 'error')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
     <BottomSheet open={open} onClose={onClose} title="Deposit USDT">
       <div className="flex gap-2 bg-space-800 p-1 rounded-full mb-4">
-        {['TRC-20', 'ERC-20'].map((n) => (
+        {NETWORKS.map((n) => (
           <button
-            key={n}
+            key={n.value}
             type="button"
-            onClick={() => setNetwork(n)}
+            onClick={() => setNetwork(n.value)}
             className={`flex-1 h-9 rounded-full text-sm font-medium transition ${
-              network === n
+              network === n.value
                 ? 'bg-teal-500 text-space-900 shadow-teal-glow'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            {n}
+            {n.label}
           </button>
         ))}
       </div>
@@ -77,31 +111,52 @@ export default function DepositModal({ open, onClose }) {
       <div className="mt-5 bg-space-800 border border-space-500 rounded-2xl p-4">
         <div className="text-xs text-gray-400 mb-1.5">Deposit Address ({network})</div>
         <div className="flex items-center gap-2">
-          <span className="font-mono text-sm text-white truncate flex-1">{address}</span>
+          <span className="font-mono text-sm text-white truncate flex-1">
+            {loadingAddr ? 'Loading…' : address || '—'}
+          </span>
           <button
             type="button"
             onClick={copyAddr}
-            className="text-teal-300 hover:text-teal-200 p-1 rounded-md"
+            disabled={!address}
+            className="text-teal-300 hover:text-teal-200 p-1 rounded-md disabled:opacity-40"
             aria-label="Copy address"
           >
             <Copy size={16} />
           </button>
         </div>
         <div className="mt-4 flex justify-center">
-          <div className="h-32 w-32 rounded-xl bg-teal-500/15 border border-teal-400/30 flex items-center justify-center text-teal-300 font-mono text-sm">
-            QR
-          </div>
+          {address ? (
+            <img
+              src={walletApi.depositAddressQrUrl(network)}
+              alt="QR"
+              className="h-32 w-32 rounded-xl bg-white p-1"
+            />
+          ) : (
+            <div className="h-32 w-32 rounded-xl bg-teal-500/15 border border-teal-400/30 flex items-center justify-center text-teal-300 font-mono text-sm">
+              QR
+            </div>
+          )}
         </div>
       </div>
 
-      <p className="text-xs text-gold-400 mt-3">Minimum: 10 USDT = 1 H Coin</p>
+      <Field
+        label="Transaction Hash (optional)"
+        placeholder="0x… or T…"
+        value={txHash}
+        onChange={(e) => setTxHash(e.target.value)}
+      />
+
+      <p className="text-xs text-gold-400 mt-3">
+        Minimum: {minimum} USDT = {Math.floor(minimum / (wallet?.conversionRate || 10))} H Coin
+      </p>
 
       <button
         type="button"
+        disabled={submitting}
         onClick={onConfirm}
-        className="w-full mt-5 h-12 rounded-full bg-teal-500 hover:bg-teal-400 text-space-900 font-semibold shadow-teal-glow transition active:scale-[0.98]"
+        className="w-full mt-5 h-12 rounded-full bg-teal-500 hover:bg-teal-400 text-space-900 font-semibold shadow-teal-glow transition active:scale-[0.98] disabled:opacity-60"
       >
-        Confirm Deposit
+        {submitting ? 'Submitting…' : 'Confirm Deposit'}
       </button>
     </BottomSheet>
   )

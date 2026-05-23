@@ -30,16 +30,16 @@ export default function Login() {
     return Object.keys(e).length === 0
   }
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault()
     if (!validate()) return
     setSubmitting(true)
     try {
-      login(form)
+      await login(form)
       showToast('Welcome back!', 'success')
       navigate('/home', { replace: true })
     } catch (err) {
-      showToast(err.message || 'Sign in failed', 'error')
+      showToast(err?.message || 'Sign in failed', 'error')
     } finally {
       setSubmitting(false)
     }
@@ -97,7 +97,12 @@ export default function Login() {
           {submitting ? 'Signing in…' : 'Sign In'}
         </motion.button>
 
-        <p className="text-center text-sm text-gray-400 mt-5">
+        <p className="text-center text-sm text-gray-400 mt-3">
+          <Link to="/forgot-password" className="text-teal-400 hover:text-teal-300 font-medium">
+            Forgot password?
+          </Link>
+        </p>
+        <p className="text-center text-sm text-gray-400 mt-2">
           Don&apos;t have an account?{' '}
           <Link to="/register" className="text-teal-400 hover:text-teal-300 font-medium">
             Register

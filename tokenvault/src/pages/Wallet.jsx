@@ -19,6 +19,7 @@ import CountUp from '../components/CountUp.jsx'
 import { TransactionSkeleton } from '../components/Skeleton.jsx'
 import DepositModal from '../components/DepositModal.jsx'
 import WithdrawModal from '../components/WithdrawModal.jsx'
+import { notificationsApi } from '../api'
 
 function txIcon(type) {
   if (type === 'deposit') return <ArrowUp size={16} className="text-emerald-400" />
@@ -33,16 +34,21 @@ function txTint(type) {
 }
 
 export default function WalletPage() {
-  const { wallet, activateReward, claimReward } = useWallet()
+  const { wallet, loading, activateReward, claimReward } = useWallet()
   const { showToast } = useToast()
-  const [loading, setLoading] = useState(true)
   const [showDeposit, setShowDeposit] = useState(false)
   const [showWithdraw, setShowWithdraw] = useState(false)
   const [tick, setTick] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [unread, setUnread] = useState(0)
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 1500)
-    return () => clearTimeout(t)
+    let cancelled = false
+    notificationsApi.unreadCount().then((r) => { if (!cancelled) setUnread(r?.unread || 0) }).catch(() => {})
+    const id = setInterval(() => {
+      notificationsApi.unreadCount().then((r) => { if (!cancelled) setUnread(r?.unread || 0) }).catch(() => {})
+    }, 30_000)
+    return () => { cancelled = true; clearInterval(id) }
   }, [])
 
   useEffect(() => {
@@ -54,9 +60,24 @@ export default function WalletPage() {
   const rewardReady =
     wallet.rewardActive && wallet.rewardEndTime && wallet.rewardEndTime <= Date.now()
 
-  const onClaim = () => {
-    claimReward()
-    showToast('Claimed cycle reward!', 'success')
+  const onActivate = async () => {
+    setBusy(true)
+    try {
+      await activateReward()
+      showToast('Reward cycle activated!', 'success')
+    } catch (e) {
+      showToast(e?.message || 'Could not activate cycle', 'error')
+    } finally { setBusy(false) }
+  }
+
+  const onClaim = async () => {
+    setBusy(true)
+    try {
+      await claimReward()
+      showToast('Claimed cycle reward!', 'success')
+    } catch (e) {
+      showToast(e?.message || 'Claim failed', 'error')
+    } finally { setBusy(false) }
   }
 
   return (
@@ -67,9 +88,21 @@ export default function WalletPage() {
         <button
           type="button"
           aria-label="Notifications"
-          className="h-10 w-10 grid place-items-center rounded-full border border-space-500 bg-space-700 hover:border-teal-400 transition"
+          onClick={async () => {
+            try {
+              await notificationsApi.markAllRead()
+              setUnread(0)
+              showToast('Marked all as read', 'success')
+            } catch (e) { showToast(e?.message || 'Could not update', 'error') }
+          }}
+          className="relative h-10 w-10 grid place-items-center rounded-full border border-space-500 bg-space-700 hover:border-teal-400 transition"
         >
           <Bell size={18} className="text-gray-300" />
+          {unread > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-bold grid place-items-center ring-2 ring-space-900">
+              {unread > 99 ? '99+' : unread}
+            </span>
+          )}
         </button>
       </div>
 
@@ -108,23 +141,22 @@ export default function WalletPage() {
         {!wallet.rewardActive ? (
           <button
             type="button"
-            onClick={() => {
-              activateReward()
-              showToast('Reward cycle activated!', 'success')
-            }}
-            className="w-full h-9 rounded-full bg-gold-500 hover:bg-gold-400 text-amber-950 font-semibold text-sm shadow-gold-glow active:scale-[0.98] transition"
+            onClick={onActivate}
+            disabled={busy}
+            className="w-full h-9 rounded-full bg-gold-500 hover:bg-gold-400 text-amber-950 font-semibold text-sm shadow-gold-glow active:scale-[0.98] transition disabled:opacity-60"
           >
-            Activate Reward Cycle
+            {busy ? 'Activating…' : 'Activate Reward Cycle'}
           </button>
         ) : rewardReady ? (
           <motion.button
             type="button"
             onClick={onClaim}
+            disabled={busy}
             animate={{ scale: [1, 1.03, 1] }}
             transition={{ duration: 1.4, repeat: Infinity }}
-            className="w-full h-9 rounded-full bg-gold-500 text-amber-950 font-semibold text-sm shadow-gold-glow"
+            className="w-full h-9 rounded-full bg-gold-500 text-amber-950 font-semibold text-sm shadow-gold-glow disabled:opacity-60"
           >
-            Claim Reward
+            {busy ? 'Claiming…' : 'Claim Reward'}
           </motion.button>
         ) : (
           <>

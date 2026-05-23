@@ -3,7 +3,8 @@
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve as static_serve
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
 from rest_framework import permissions
@@ -41,6 +42,18 @@ urlpatterns = [
     path("api/schema.json", schema_view.without_ui(cache_timeout=0), name="schema-json"),
 ]
 
+# Always serve user-uploaded media (avatars, etc.) from Django so the SPA
+# can render them. `static()` is a no-op when DEBUG=False, so we wire the
+# underlying serve view directly. In a real prod deployment you'd put this
+# behind nginx or a CDN, but for local docker-compose this is fine.
+_media_url = settings.MEDIA_URL.lstrip("/").rstrip("/")
+urlpatterns += [
+    re_path(
+        rf"^{_media_url}/(?P<path>.*)$",
+        static_serve,
+        {"document_root": settings.MEDIA_ROOT},
+    ),
+]
+
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
