@@ -4,6 +4,7 @@ import {
   Check,
   ChevronDown,
   Copy,
+  Globe,
   LifeBuoy,
   LogOut,
   Mail,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import { useLanguage, useT } from '../i18n/LanguageContext.jsx'
 import Field from '../components/Field.jsx'
 import MobileField from '../components/MobileField.jsx'
 import { usersApi, supportApi, referenceApi, resolveMediaUrl } from '../api'
@@ -32,6 +34,8 @@ function initials(first, last) {
 export default function Profile() {
   const { user, updateUser, logout, refreshUser } = useAuth()
   const { showToast } = useToast()
+  const t = useT()
+  const { lang, setLang, languages } = useLanguage()
 
   const initialMobile = splitMobile(user?.mobile)
   const [form, setForm] = useState({
@@ -79,10 +83,10 @@ export default function Profile() {
         country: form.country,
       })
       setSaved(true)
-      showToast('Profile saved', 'success')
+      showToast(t('profile.profileSaved'), 'success')
       setTimeout(() => setSaved(false), 2200)
     } catch (err) {
-      showToast(err?.message || 'Save failed', 'error')
+      showToast(err?.message || t('profile.saveFailed'), 'error')
     } finally {
       setSaving(false)
     }
@@ -93,20 +97,20 @@ export default function Profile() {
     if (!file) return
     // Basic client-side guard so we don't POST a 20MB photo.
     if (!file.type.startsWith('image/')) {
-      showToast('Please choose an image file', 'error')
+      showToast(t('profile.chooseImage'), 'error')
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      showToast('Image must be under 5 MB', 'error')
+      showToast(t('profile.imageMaxSize'), 'error')
       return
     }
     try {
       await usersApi.uploadAvatar(file)
       await refreshUser()
       setAvatarBust(Date.now()) // cache-bust the <img>
-      showToast('Photo updated', 'success')
+      showToast(t('profile.photoUpdated'), 'success')
     } catch (err) {
-      showToast(err?.message || 'Upload failed', 'error')
+      showToast(err?.message || t('profile.uploadFailed'), 'error')
     } finally {
       // allow re-selecting the same file
       e.target.value = ''
@@ -121,28 +125,28 @@ export default function Profile() {
   const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(user?.referralCode || '')
-      showToast('Copied!', 'success')
+      showToast(t('common.copied'), 'success')
     } catch {
-      showToast('Copy failed', 'error')
+      showToast(t('common.copyFailed'), 'error')
     }
   }
 
   const onUpdatePassword = async (e) => {
     e.preventDefault()
     const errs = {}
-    if (!pw.current) errs.current = 'Required'
-    if (!pw.next || pw.next.length < 8) errs.next = 'Min 8 characters'
-    if (pw.confirm !== pw.next) errs.confirm = 'Does not match'
+    if (!pw.current) errs.current = t('common.required')
+    if (!pw.next || pw.next.length < 8) errs.next = t('auth.pwMin8')
+    if (pw.confirm !== pw.next) errs.confirm = t('auth.pwDoesNotMatch')
     setPwErrors(errs)
     if (Object.keys(errs).length) return
     setPwSubmitting(true)
     try {
       await usersApi.changePassword({ currentPassword: pw.current, newPassword: pw.next })
       setPw({ current: '', next: '', confirm: '' })
-      showToast('Password updated', 'success')
+      showToast(t('profile.passwordUpdated'), 'success')
       setPwOpen(false)
     } catch (err) {
-      showToast(err?.message || 'Update failed', 'error')
+      showToast(err?.message || t('profile.updateFailed'), 'error')
     } finally {
       setPwSubmitting(false)
     }
@@ -165,7 +169,7 @@ export default function Profile() {
           </div>
         )}
         <label className="text-xs text-teal-300 hover:text-teal-200 cursor-pointer">
-          Edit Photo
+          {t('profile.editPhoto')}
           <input type="file" accept="image/*" className="hidden" onChange={onAvatarChange} />
         </label>
         <div className="font-semibold text-white text-base">
@@ -175,41 +179,41 @@ export default function Profile() {
 
       {/* Status chips */}
       <div className="mt-5 flex gap-2 justify-center">
-        <StatusChip active={user?.status?.hasDeposit} label="Initial Deposit" />
-        <StatusChip active={user?.status?.hasReferral} label="1+ Referral" icon={<UserPlus size={12} />} />
+        <StatusChip active={user?.status?.hasDeposit} label={t('profile.initialDeposit')} />
+        <StatusChip active={user?.status?.hasReferral} label={t('profile.oneRef')} icon={<UserPlus size={12} />} />
       </div>
 
       {/* Editable form */}
       <form onSubmit={onSave} className="mt-6 bg-space-700 border border-space-500 rounded-2xl p-5 space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="First Name" value={form.firstName} onChange={onChange('firstName')} />
-          <Field label="Last Name" value={form.lastName} onChange={onChange('lastName')} />
+          <Field label={t('profile.firstName')} value={form.firstName} onChange={onChange('firstName')} />
+          <Field label={t('profile.lastName')} value={form.lastName} onChange={onChange('lastName')} />
         </div>
         <MobileField
-          label="Mobile"
+          label={t('profile.mobile')}
           code={form.countryCode}
           number={form.mobile}
           onCodeChange={(code) => setForm((f) => ({ ...f, countryCode: code }))}
           onNumberChange={(n) => setForm((f) => ({ ...f, mobile: n }))}
         />
-        <Field label="Email" type="email" value={form.email} disabled onChange={onChange('email')} />
+        <Field label={t('profile.email')} type="email" value={form.email} disabled onChange={onChange('email')} />
 
         <label className="block">
-          <span className="block text-xs font-medium text-gray-400 mb-1.5 tracking-wide">Country</span>
+          <span className="block text-xs font-medium text-gray-400 mb-1.5 tracking-wide">{t('profile.country')}</span>
           <div className="relative">
             <select
               value={form.country}
               onChange={onChange('country')}
               className="w-full appearance-none bg-space-600 border border-space-500 rounded-xl px-3.5 min-h-[48px] text-white text-[15px] outline-none focus:border-teal-400 focus:ring-2 focus:ring-teal-400/30 transition"
             >
-              <option value="" className="bg-space-700">Select country…</option>
+              <option value="" className="bg-space-700">{t('profile.selectCountry')}</option>
               {countries.map((c) => (
                 <option key={c.code} value={c.code} className="bg-space-700">
                   {c.flagEmoji ? `${c.flagEmoji} ` : ''}{c.name}
                 </option>
               ))}
             </select>
-            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <ChevronDown size={16} className="absolute end-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
         </label>
 
@@ -222,20 +226,52 @@ export default function Profile() {
           <AnimatePresence mode="wait">
             {saved ? (
               <motion.span key="saved" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className="inline-flex items-center gap-1.5">
-                <Check size={16} /> Saved
+                <Check size={16} /> {t('common.saved')}
               </motion.span>
             ) : (
               <motion.span key="save" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
-                {saving ? 'Saving…' : 'Save Changes'}
+                {saving ? t('common.saving') : t('common.save')}
               </motion.span>
             )}
           </AnimatePresence>
         </motion.button>
       </form>
 
+      {/* Language switcher */}
+      <div className="mt-5 bg-space-700 border border-space-500 rounded-2xl p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <Globe size={16} className="text-teal-300" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-white">{t('profile.language')}</div>
+            <div className="text-[11px] text-gray-400 leading-snug">{t('profile.languageDesc')}</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {languages.map((l) => {
+            const active = l.code === lang
+            return (
+              <button
+                key={l.code}
+                type="button"
+                onClick={() => setLang(l.code)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-sm transition ${
+                  active
+                    ? 'border-teal-400 bg-teal-500/15 text-teal-200 shadow-teal-glow'
+                    : 'border-space-500 bg-space-600 text-white hover:border-teal-400/60'
+                }`}
+              >
+                <span className="text-base leading-none">{l.flag}</span>
+                <span className="flex-1 text-start truncate">{l.native}</span>
+                {active && <Check size={14} className="shrink-0 text-teal-300" />}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       {/* Invite code */}
       <div className="mt-5 bg-space-700 border border-space-500 rounded-2xl p-5">
-        <div className="text-xs text-gray-400 uppercase tracking-wider">Your Referral Code</div>
+        <div className="text-xs text-gray-400 uppercase tracking-wider">{t('profile.yourReferralCode')}</div>
         <div className="mt-2 flex items-center justify-between gap-3">
           <span className="font-mono font-bold text-2xl text-white tracking-wider">
             {user?.referralCode || '—'}
@@ -244,7 +280,7 @@ export default function Profile() {
             type="button"
             onClick={onCopy}
             className="h-10 w-10 rounded-full bg-space-600 border border-space-500 hover:border-teal-400 grid place-items-center text-teal-300 transition"
-            aria-label="Copy referral code"
+            aria-label={t('common.copy')}
           >
             <Copy size={16} />
           </button>
@@ -260,7 +296,7 @@ export default function Profile() {
         >
           <span className="flex items-center gap-2 text-sm font-medium text-white">
             <ShieldCheck size={16} className="text-teal-300" />
-            Change Password
+            {t('profile.changePassword')}
           </span>
           <motion.span animate={{ rotate: pwOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
             <ChevronDown size={18} className="text-gray-400" />
@@ -277,15 +313,15 @@ export default function Profile() {
               onSubmit={onUpdatePassword}
               className="px-5 pb-5 pt-1 space-y-3"
             >
-              <Field label="Current Password" type="password" value={pw.current} onChange={(e) => setPw((p) => ({ ...p, current: e.target.value }))} error={pwErrors.current} />
-              <Field label="New Password" type="password" value={pw.next} onChange={(e) => setPw((p) => ({ ...p, next: e.target.value }))} error={pwErrors.next} />
-              <Field label="Confirm New Password" type="password" value={pw.confirm} onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))} error={pwErrors.confirm} />
+              <Field label={t('profile.currentPassword')} type="password" value={pw.current} onChange={(e) => setPw((p) => ({ ...p, current: e.target.value }))} error={pwErrors.current} />
+              <Field label={t('profile.newPassword')} type="password" value={pw.next} onChange={(e) => setPw((p) => ({ ...p, next: e.target.value }))} error={pwErrors.next} />
+              <Field label={t('profile.confirmNewPassword')} type="password" value={pw.confirm} onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))} error={pwErrors.confirm} />
               <button
                 type="submit"
                 disabled={pwSubmitting}
                 className="w-full h-11 rounded-full bg-teal-500 hover:bg-teal-400 text-space-900 font-semibold shadow-teal-glow transition active:scale-[0.98] disabled:opacity-60"
               >
-                {pwSubmitting ? 'Updating…' : 'Update Password'}
+                {pwSubmitting ? t('profile.updating') : t('profile.updatePassword')}
               </button>
             </motion.form>
           )}
@@ -301,7 +337,7 @@ export default function Profile() {
         >
           <span className="flex items-center gap-2 text-sm font-medium text-white">
             <LifeBuoy size={16} className="text-emerald-300" />
-            Support
+            {t('profile.support')}
           </span>
           <motion.span animate={{ rotate: supportOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
             <ChevronDown size={18} className="text-gray-400" />
@@ -324,13 +360,13 @@ export default function Profile() {
                   onClick={async () => {
                     try {
                       const s = await supportApi.chatSession()
-                      showToast(`Chat session: ${s.sessionToken}`, 'info')
-                    } catch (e) { showToast(e?.message || 'Chat unavailable', 'error') }
+                      showToast(t('profile.chatSession', { token: s.sessionToken }), 'info')
+                    } catch (e) { showToast(e?.message || t('profile.chatUnavailable'), 'error') }
                   }}
                   className="flex flex-col items-center gap-1.5 py-3.5 rounded-2xl bg-white/10 border border-emerald-400/30 backdrop-blur-md hover:border-emerald-400/60 transition"
                 >
                   <MessageCircle size={22} className="text-emerald-300" />
-                  <span className="text-[13px] font-medium text-white">Live Chat</span>
+                  <span className="text-[13px] font-medium text-white">{t('profile.liveChat')}</span>
                 </motion.button>
                 <motion.button
                   type="button"
@@ -339,16 +375,16 @@ export default function Profile() {
                   className="flex flex-col items-center gap-1.5 py-3.5 rounded-2xl bg-white/10 border border-sky-400/30 backdrop-blur-md hover:border-sky-400/60 transition"
                 >
                   <Mail size={22} className="text-sky-300" />
-                  <span className="text-[13px] font-medium text-white">Email Us</span>
+                  <span className="text-[13px] font-medium text-white">{t('profile.emailUs')}</span>
                 </motion.button>
               </div>
 
               <p className="text-[11px] font-bold tracking-[0.12em] text-white/50 uppercase pl-0.5 mt-4 mb-2.5">
-                Frequently Asked
+                {t('profile.faq')}
               </p>
               <div className="space-y-2">
                 {faqs.length === 0 && (
-                  <p className="text-xs text-gray-500 px-1">No FAQs yet.</p>
+                  <p className="text-xs text-gray-500 px-1">{t('profile.noFaqs')}</p>
                 )}
                 {faqs.map((faq, i) => {
                   const open = openFaq === i
@@ -389,11 +425,11 @@ export default function Profile() {
         type="button"
         onClick={async () => {
           await logout()
-          showToast('Signed out', 'info')
+          showToast(t('profile.signedOut'), 'info')
         }}
         className="w-full mt-5 h-11 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 font-semibold border border-rose-400/30 transition flex items-center justify-center gap-2"
       >
-        <LogOut size={16} /> Sign Out
+        <LogOut size={16} /> {t('profile.signOut')}
       </button>
     </div>
   )

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useWallet } from '../context/WalletContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import { useT } from '../i18n/LanguageContext.jsx'
 import Countdown from '../components/Countdown.jsx'
 import CountUp from '../components/CountUp.jsx'
 import { TransactionSkeleton } from '../components/Skeleton.jsx'
@@ -43,6 +44,7 @@ function txTint(type) {
 export default function WalletPage() {
   const { wallet, loading, activateReward, claimReward } = useWallet()
   const { showToast } = useToast()
+  const t = useT()
   const [showDeposit, setShowDeposit] = useState(false)
   const [showWithdraw, setShowWithdraw] = useState(false)
   const [tick, setTick] = useState(0)
@@ -101,14 +103,14 @@ export default function WalletPage() {
     setBusy(true)
     try {
       await activateReward()
-      showToast('Reward cycle activated!', 'success')
+      showToast(t('wallet.activated'), 'success')
     } catch (e) {
       // Backend may return multiple reasons (e.g. balance AND no referral).
       const reasons = e?.data?.reasons
       if (Array.isArray(reasons) && reasons.length) {
         reasons.forEach((r) => showToast(r.message, 'error'))
       } else {
-        showToast(e?.message || 'Could not activate cycle', 'error')
+        showToast(e?.message || t('wallet.couldNotActivate'), 'error')
       }
     } finally { setBusy(false) }
   }
@@ -117,9 +119,9 @@ export default function WalletPage() {
     setBusy(true)
     try {
       await claimReward()
-      showToast('Claimed cycle reward!', 'success')
+      showToast(t('wallet.claimed'), 'success')
     } catch (e) {
-      showToast(e?.message || 'Claim failed', 'error')
+      showToast(e?.message || t('wallet.claimFailed'), 'error')
     } finally { setBusy(false) }
   }
 
@@ -127,16 +129,16 @@ export default function WalletPage() {
     <div className="relative w-full max-w-[480px] mx-auto px-5 pt-6 pb-28 bg-space-900 min-h-[100dvh]">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold">Wallet</h1>
+        <h1 className="text-2xl font-bold">{t('wallet.title')}</h1>
         <button
           type="button"
-          aria-label="Notifications"
+          aria-label={t('wallet.notifications')}
           onClick={async () => {
             try {
               await notificationsApi.markAllRead()
               setUnread(0)
-              showToast('Marked all as read', 'success')
-            } catch (e) { showToast(e?.message || 'Could not update', 'error') }
+              showToast(t('wallet.markedAllRead'), 'success')
+            } catch (e) { showToast(e?.message || t('wallet.couldNotUpdate'), 'error') }
           }}
           className="relative h-10 w-10 grid place-items-center rounded-full border border-space-500 bg-space-700 hover:border-teal-400 transition"
         >
@@ -156,13 +158,13 @@ export default function WalletPage() {
         transition={{ duration: 0.4 }}
         className="rounded-3xl border border-teal-400/40 bg-gradient-to-br from-teal-500/10 to-space-700 p-5 shadow-teal-glow"
       >
-        <div className="text-xs text-gray-400 uppercase tracking-wider">Total Balance</div>
+        <div className="text-xs text-gray-400 uppercase tracking-wider">{t('wallet.totalBalance')}</div>
         <div className="flex items-center gap-3 mt-2">
           <div className="h-11 w-11 rounded-full bg-gradient-to-br from-gold-300 to-gold-500 grid place-items-center shadow-gold-glow">
             <Coins size={22} className="text-amber-900" strokeWidth={2.5} />
           </div>
           <div className="font-mono font-bold text-[36px] leading-none">
-            <CountUp to={wallet.hCoins} /> <span className="text-white">H Coins</span>
+            <CountUp to={wallet.hCoins} /> <span className="text-white">{t('wallet.hCoins')}</span>
           </div>
         </div>
         <div className="text-gray-400 text-[15px] mt-2">
@@ -180,7 +182,7 @@ export default function WalletPage() {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-1.5">
             <Gift size={13} className="text-gold-400" />
-            <span className="text-[11px] font-semibold text-gold-300 uppercase tracking-wider">Next Reward</span>
+            <span className="text-[11px] font-semibold text-gold-300 uppercase tracking-wider">{t('wallet.nextReward')}</span>
           </div>
           {rewardAmountLabel && (
             <span className="font-mono text-[12px] font-bold text-gold-300">
@@ -192,8 +194,7 @@ export default function WalletPage() {
         {!wallet.rewardActive ? (
           <>
             <p className="text-[11px] text-gray-400 mb-2 leading-snug">
-              Earn <span className="font-semibold text-gold-300">{rewardPercent}%</span> of your
-              balance, claimable in {rewardDurationDays} days.
+              {t('wallet.earnPercent', { percent: rewardPercent, days: rewardDurationDays })}
             </p>
 
             {/* Pre-activation requirement list — only shown if any reason is failing. */}
@@ -218,7 +219,7 @@ export default function WalletPage() {
               title={!canActivate ? ineligibilityReasons.map((r) => r.message).join(' ') : undefined}
               className="w-full h-9 rounded-full bg-gold-500 hover:bg-gold-400 text-amber-950 font-semibold text-sm shadow-gold-glow active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {busy ? 'Activating…' : 'Activate Reward Cycle'}
+              {busy ? t('wallet.activating') : t('wallet.activateCycle')}
             </button>
           </>
         ) : rewardReady ? (
@@ -230,7 +231,7 @@ export default function WalletPage() {
             transition={{ duration: 1.4, repeat: Infinity }}
             className="w-full h-9 rounded-full bg-gold-500 text-amber-950 font-semibold text-sm shadow-gold-glow disabled:opacity-60"
           >
-            {busy ? 'Claiming…' : `Claim ${rewardAmountLabel || ''} H Coins`}
+            {busy ? t('wallet.claiming') : t('wallet.claimAmount', { amount: rewardAmountLabel || '' })}
           </motion.button>
         ) : (
           <>
@@ -251,20 +252,20 @@ export default function WalletPage() {
         <ActionButton
           onClick={() => setShowDeposit(true)}
           icon={<ArrowDownCircle size={18} />}
-          label="Deposit"
+          label={t('wallet.deposit')}
           variant="teal-filled"
         />
         <ActionButton
           onClick={() => setShowWithdraw(true)}
           icon={<ArrowUpCircle size={18} />}
-          label="Withdraw"
+          label={t('wallet.withdraw')}
           variant="teal-outline"
         />
         <ActionButton
           onClick={onClaim}
           disabled={!rewardReady}
           icon={<Star size={18} />}
-          label="Claim"
+          label={t('wallet.claim')}
           variant="gold"
           badge={rewardReady}
         />
@@ -273,14 +274,16 @@ export default function WalletPage() {
       {/* Coming Soon: Tournaments & Lucky Spin */}
       <div className="mt-5 grid grid-cols-2 gap-3">
         <ComingSoonCard
-          label="Tournaments"
+          label={t('wallet.tournaments')}
+          comingSoon={t('wallet.comingSoon')}
           icon={<Trophy size={28} className="text-amber-300" />}
           tint="bg-amber-500/15"
           border="border-amber-400/30"
           accent="from-transparent via-amber-400/60 to-transparent"
         />
         <ComingSoonCard
-          label="Lucky Spin"
+          label={t('wallet.luckySpin')}
+          comingSoon={t('wallet.comingSoon')}
           icon={<Dices size={28} className="text-purple-300" />}
           tint="bg-purple-500/15"
           border="border-purple-400/30"
@@ -291,8 +294,8 @@ export default function WalletPage() {
       {/* Transactions */}
       <div className="mt-7">
         <div className="flex items-center justify-between mb-3 px-1">
-          <h2 className="text-base font-semibold">Recent Transactions</h2>
-          <span className="text-xs text-gray-500">{wallet.transactions.length} total</span>
+          <h2 className="text-base font-semibold">{t('wallet.recentTransactions')}</h2>
+          <span className="text-xs text-gray-500">{t('wallet.totalCount', { count: wallet.transactions.length })}</span>
         </div>
         <div className="bg-space-700 border border-space-500 rounded-2xl divide-y divide-space-500 overflow-hidden">
           {loading ? (
@@ -345,7 +348,7 @@ export default function WalletPage() {
   )
 }
 
-function ComingSoonCard({ label, icon, tint, border, accent }) {
+function ComingSoonCard({ label, comingSoon, icon, tint, border, accent }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -357,7 +360,7 @@ function ComingSoonCard({ label, icon, tint, border, accent }) {
       {icon}
       <span className="text-[13.5px] font-semibold text-white">{label}</span>
       <span className="text-[9.5px] font-bold tracking-[0.12em] uppercase text-white/55 px-3 py-1 rounded-full bg-black/25 border border-white/15">
-        Coming Soon
+        {comingSoon}
       </span>
     </motion.div>
   )

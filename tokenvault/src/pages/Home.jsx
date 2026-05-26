@@ -2,29 +2,34 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import StarField from '../components/StarField.jsx'
 import { useWallet } from '../context/WalletContext.jsx'
+import { useT } from '../i18n/LanguageContext.jsx'
 import houstonLogo from '/houston-logo.png'
 import spaceBg from '/space-bg.jpg'
 
-function formatRemaining(endTime) {
-  if (!endTime) return '—'
+function remainingParts(endTime) {
+  if (!endTime) return null
   const t = Math.max(0, endTime - Date.now())
-  const days = Math.floor(t / (24 * 3600 * 1000))
-  const hours = Math.floor((t / (3600 * 1000)) % 24)
-  const minutes = Math.floor((t / (60 * 1000)) % 60)
-  return `${days} day ${hours} hour ${minutes} minutes`
+  return {
+    days: Math.floor(t / (24 * 3600 * 1000)),
+    hours: Math.floor((t / (3600 * 1000)) % 24),
+    minutes: Math.floor((t / (60 * 1000)) % 60),
+  }
 }
 
 export default function Home() {
   const { wallet } = useWallet()
+  const t = useT()
   const endTime = wallet?.globalCycleEnd
-  const [text, setText] = useState(() => formatRemaining(endTime))
+  const [parts, setParts] = useState(() => remainingParts(endTime))
 
   useEffect(() => {
-    setText(formatRemaining(endTime))
+    setParts(remainingParts(endTime))
     if (!endTime) return
-    const id = setInterval(() => setText(formatRemaining(endTime)), 1000)
+    const id = setInterval(() => setParts(remainingParts(endTime)), 1000)
     return () => clearInterval(id)
   }, [endTime])
+
+  const text = parts ? t('home.duration', parts) : '—'
 
   return (
     <div className="relative min-h-[100dvh] w-full overflow-hidden bg-space-900 flex items-start justify-center px-5 pt-[25vh] pb-20">
@@ -58,7 +63,7 @@ export default function Home() {
         <div className="flex flex-col items-center gap-1">
           <span className="text-white text-[12px]">{text}</span>
           <span className="text-gray-400 text-[11px] tracking-wide">
-            Until the End of the Initial Coin Offering (ICO)
+            {t('home.untilIco')}
           </span>
         </div>
       </div>

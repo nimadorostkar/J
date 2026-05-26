@@ -10,14 +10,17 @@ function mapKey(k) {
 import { motion } from 'framer-motion'
 import StarField from '../components/StarField.jsx'
 import Field from '../components/Field.jsx'
+import LanguagePicker from '../components/LanguagePicker.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import { useT } from '../i18n/LanguageContext.jsx'
 import houstonLogo from '/houston-logo.png'
 
 export default function Register() {
   const navigate = useNavigate()
   const { register } = useAuth()
   const { showToast } = useToast()
+  const t = useT()
   const [form, setForm] = useState({
     firstName: '',
     lastName: '',
@@ -36,15 +39,15 @@ export default function Register() {
 
   const validate = () => {
     const e = {}
-    if (!form.firstName) e.firstName = 'Required'
-    if (!form.lastName) e.lastName = 'Required'
-    if (!form.email) e.email = 'Email is required'
-    else if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = 'Enter a valid email'
-    if (!form.password) e.password = 'Required'
-    else if (form.password.length < 8) e.password = 'Min 8 characters'
-    if (form.confirm !== form.password) e.confirm = 'Passwords do not match'
-    if (!form.invite.trim()) e.invite = 'Invite code is required'
-    else if (!/^[A-Za-z0-9]{8}$/.test(form.invite.trim())) e.invite = 'Code must be 8 alphanumeric chars'
+    if (!form.firstName) e.firstName = t('common.required')
+    if (!form.lastName) e.lastName = t('common.required')
+    if (!form.email) e.email = t('auth.emailRequired')
+    else if (!/^\S+@\S+\.\S+$/.test(form.email)) e.email = t('auth.emailInvalid')
+    if (!form.password) e.password = t('common.required')
+    else if (form.password.length < 8) e.password = t('auth.pwMin8')
+    if (form.confirm !== form.password) e.confirm = t('auth.pwMismatch')
+    if (!form.invite.trim()) e.invite = t('auth.inviteRequired')
+    else if (!/^[A-Za-z0-9]{8}$/.test(form.invite.trim())) e.invite = t('auth.inviteFormat')
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -61,7 +64,7 @@ export default function Register() {
         password: form.password,
         inviteCode: form.invite.trim().toUpperCase(),
       })
-      showToast('Account created!', 'success')
+      showToast(t('auth.accountCreated'), 'success')
       navigate('/home', { replace: true })
     } catch (err) {
       // Try to surface field-level errors from DRF
@@ -75,7 +78,7 @@ export default function Register() {
         }
         if (Object.keys(fieldErrors).length) setErrors((er) => ({ ...er, ...fieldErrors }))
       }
-      showToast(err?.message || 'Registration failed', 'error')
+      showToast(err?.message || t('auth.registrationFailed'), 'error')
     } finally {
       setSubmitting(false)
     }
@@ -84,6 +87,7 @@ export default function Register() {
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-space-800 flex items-center justify-center px-5 py-10">
       <StarField />
+      <LanguagePicker />
       <motion.form
         onSubmit={onSubmit}
         initial={{ opacity: 0, y: 24 }}
@@ -98,19 +102,19 @@ export default function Register() {
             className="h-10 w-auto select-none drop-shadow-[0_0_18px_rgba(45,212,191,0.35)]"
             draggable="false"
           />
-          <span className="text-sm text-gray-400">Create your account</span>
+          <span className="text-sm text-gray-400">{t('auth.createAccount')}</span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="First Name" value={form.firstName} onChange={onChange('firstName')} error={errors.firstName} placeholder="Alex" />
-          <Field label="Last Name" value={form.lastName} onChange={onChange('lastName')} error={errors.lastName} placeholder="Morgan" />
+          <Field label={t('auth.firstName')} value={form.firstName} onChange={onChange('firstName')} error={errors.firstName} placeholder={t('auth.firstNamePh')} />
+          <Field label={t('auth.lastName')} value={form.lastName} onChange={onChange('lastName')} error={errors.lastName} placeholder={t('auth.lastNamePh')} />
         </div>
 
         <div className="space-y-3 mt-3">
-          <Field label="Email" type="email" value={form.email} onChange={onChange('email')} error={errors.email} placeholder="you@example.com" />
-          <Field label="Password" type="password" value={form.password} onChange={onChange('password')} error={errors.password} placeholder="••••••••" />
-          <Field label="Confirm Password" type="password" value={form.confirm} onChange={onChange('confirm')} error={errors.confirm} placeholder="••••••••" />
-          <Field label="Invite Code" value={form.invite} onChange={onChange('invite')} error={errors.invite} placeholder="FRIEND2024" />
+          <Field label={t('auth.email')} type="email" value={form.email} onChange={onChange('email')} error={errors.email} placeholder={t('auth.emailPlaceholder')} />
+          <Field label={t('auth.password')} type="password" value={form.password} onChange={onChange('password')} error={errors.password} placeholder={t('auth.passwordPlaceholder')} />
+          <Field label={t('auth.confirmPassword')} type="password" value={form.confirm} onChange={onChange('confirm')} error={errors.confirm} placeholder={t('auth.passwordPlaceholder')} />
+          <Field label={t('auth.inviteCode')} value={form.invite} onChange={onChange('invite')} error={errors.invite} placeholder={t('auth.inviteCodePh')} />
         </div>
 
         <motion.button
@@ -119,13 +123,13 @@ export default function Register() {
           type="submit"
           className="w-full mt-6 h-12 rounded-full bg-teal-500 hover:bg-teal-400 text-space-900 font-semibold shadow-teal-glow disabled:opacity-60 transition"
         >
-          {submitting ? 'Creating…' : 'Create Account'}
+          {submitting ? t('auth.creating') : t('auth.create')}
         </motion.button>
 
         <p className="text-center text-sm text-gray-400 mt-5">
-          Already have an account?{' '}
+          {t('auth.haveAccount')}{' '}
           <Link to="/login" className="text-teal-400 hover:text-teal-300 font-medium">
-            Login
+            {t('auth.login')}
           </Link>
         </p>
       </motion.form>

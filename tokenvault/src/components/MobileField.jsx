@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronDown, Search } from 'lucide-react'
 import { COUNTRY_CODES } from '../data/network.js'
+import { useT } from '../i18n/LanguageContext.jsx'
 
 export default function MobileField({
-  label = 'Mobile',
+  label,
   code,
   number,
   onCodeChange,
@@ -11,6 +12,8 @@ export default function MobileField({
   error,
   placeholder = '555 0100',
 }) {
+  const t = useT()
+  const labelText = label ?? t('profile.mobile')
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const wrapRef = useRef(null)
@@ -46,7 +49,7 @@ export default function MobileField({
   return (
     <div className="relative" ref={wrapRef}>
       <span className="block text-xs font-medium text-gray-400 mb-1.5 tracking-wide">
-        {label}
+        {labelText}
       </span>
       <div
         className={`flex items-stretch bg-space-600 border rounded-xl min-h-[48px] overflow-hidden transition focus-within:border-teal-400 focus-within:ring-2 focus-within:ring-teal-400/30 ${
@@ -86,13 +89,13 @@ export default function MobileField({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search country or code"
+              placeholder={t('countries.search')}
               className="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-gray-500"
             />
           </div>
           <div className="max-h-56 overflow-y-auto">
             {filtered.length === 0 ? (
-              <div className="px-3 py-4 text-xs text-gray-500 text-center">No matches</div>
+              <div className="px-3 py-4 text-xs text-gray-500 text-center">{t('countries.noMatches')}</div>
             ) : (
               filtered.map((c) => {
                 const active = c.code === code && c.flag === selected.flag

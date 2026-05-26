@@ -1,17 +1,19 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Timer, Wallet, Share2, User, Bot } from 'lucide-react'
+import { useT } from '../i18n/LanguageContext.jsx'
 
 const TABS = [
-  { to: '/home', label: 'Home', Icon: Timer },
-  { to: '/wallet', label: 'Wallet', Icon: Wallet },
-  { to: '/trade', label: 'Trade', Icon: Bot },
-  { to: '/network', label: 'Network', Icon: Share2 },
-  { to: '/profile', label: 'Profile', Icon: User },
+  { to: '/home', labelKey: 'nav.home', Icon: Timer },
+  { to: '/wallet', labelKey: 'nav.wallet', Icon: Wallet },
+  { to: '/trade', labelKey: 'nav.trade', Icon: Bot },
+  { to: '/network', labelKey: 'nav.network', Icon: Share2 },
+  { to: '/profile', labelKey: 'nav.profile', Icon: User },
 ]
 
 export default function BottomNav() {
   const { pathname } = useLocation()
+  const t = useT()
 
   return (
     <nav
@@ -22,8 +24,9 @@ export default function BottomNav() {
         className="flex items-stretch justify-around border-t border-space-500 backdrop-blur-xl"
         style={{ background: 'rgba(10, 14, 26, 0.9)', height: '64px' }}
       >
-        {TABS.map(({ to, label, Icon }) => {
+        {TABS.map(({ to, labelKey, Icon }) => {
           const active = pathname.startsWith(to)
+          const label = t(labelKey)
           return (
             <NavLink
               key={to}

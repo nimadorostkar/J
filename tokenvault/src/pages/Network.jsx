@@ -5,6 +5,7 @@ import StarField from '../components/StarField.jsx'
 import NodePopup from '../components/NodePopup.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import { useT } from '../i18n/LanguageContext.jsx'
 import { referralsApi, resolveMediaUrl } from '../api'
 
 const RADIUS_L1 = 130
@@ -18,9 +19,10 @@ function polar(cx, cy, r, angle) {
   return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)]
 }
 
-function toUiNode(row, level) {
+function toUiNode(row, level, t) {
   const u = row.invitedUser || row.invited_user || {}
-  const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || 'Member'
+  const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || t('network.member')
+  const statusKey = STATUS_KEY[row.status] || STATUS_KEY.registered
   return {
     id: row.id,
     level,
@@ -32,22 +34,24 @@ function toUiNode(row, level) {
     hasDeposit: !!row.hasDeposit,
     isQualified: !!row.isQualified,
     statusCode: row.status || 'registered',
-    statusLabel: STATUS_LABELS[row.status] || STATUS_LABELS.registered,
+    statusLabel: t(statusKey),
     commission: row.totalCommissionEarnedHcoin ?? '0',
     parent: row.parent || null,
   }
 }
 
-const STATUS_LABELS = {
-  registered: 'Registered',
-  verified: 'Verified',
-  first_deposit_completed: 'First Deposit Completed',
-  qualified: 'Qualified Referral',
+// Map backend status codes → translation keys (resolved at render time).
+const STATUS_KEY = {
+  registered: 'network.statusRegistered',
+  verified: 'network.statusVerified',
+  first_deposit_completed: 'network.statusFirstDeposit',
+  qualified: 'network.statusQualified',
 }
 
 export default function Network() {
   const { user } = useAuth()
   const { showToast } = useToast()
+  const t = useT()
   const [selected, setSelected] = useState(null)
   const [l1, setL1] = useState([])
   const [l2, setL2] = useState([])
@@ -67,8 +71,8 @@ export default function Network() {
       .then(([net, codeRes, statsRes]) => {
         if (cancelled) return
         if (net.status === 'fulfilled' && net.value) {
-          setL1((net.value.level1 || []).map((r) => toUiNode(r, 1)))
-          setL2((net.value.level2 || []).map((r) => toUiNode(r, 2)))
+          setL1((net.value.level1 || []).map((r) => toUiNode(r, 1, t)))
+          setL2((net.value.level2 || []).map((r) => toUiNode(r, 2, t)))
         }
         if (codeRes.status === 'fulfilled' && codeRes.value) {
           setCode(codeRes.value.code)
@@ -115,9 +119,9 @@ export default function Network() {
   const copyInvite = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl || code || '')
-      showToast('Invite copied', 'success')
+      showToast(t('network.inviteCopied'), 'success')
     } catch {
-      showToast('Copy failed', 'error')
+      showToast(t('common.copyFailed'), 'error')
     }
   }
 
@@ -128,18 +132,18 @@ export default function Network() {
       {/* Counter pills — qualified vs registered */}
       <div className="relative z-20 flex flex-wrap items-center justify-center gap-2 pt-5 px-5">
         <span className="px-3 py-1 rounded-full bg-teal-500/15 border border-teal-400/40 text-teal-300 text-xs font-medium">
-          Level 1 · {l1.length} signed up
+          {t('network.l1SignedUp', { count: l1.length })}
         </span>
         <span className="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-xs font-medium">
-          Qualified · {stats?.qualifiedCount ?? 0}
+          {t('network.qualified', { count: stats?.qualifiedCount ?? 0 })}
         </span>
         {(stats?.pendingDepositCount ?? 0) > 0 && (
           <span className="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-medium">
-            Awaiting deposit · {stats.pendingDepositCount}
+            {t('network.awaitingDeposit', { count: stats.pendingDepositCount })}
           </span>
         )}
         <span className="px-3 py-1 rounded-full bg-purple-500/15 border border-purple-400/40 text-purple-300 text-xs font-medium">
-          Level 2 · {l2.length}
+          {t('network.l2Count', { count: l2.length })}
         </span>
       </div>
 
@@ -148,23 +152,22 @@ export default function Network() {
         <div className="relative z-20 mx-5 mt-3 rounded-2xl border border-gold-400/40 bg-gradient-to-br from-gold-500/10 to-space-700 p-3.5">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] font-semibold text-gold-300 uppercase tracking-wider">
-              Referral Milestones
+              {t('network.milestones')}
             </span>
             <span className="font-mono text-[12px] font-bold text-gold-300">
-              +{milestone.rewardHcoin} H per {milestone.size} qualified
+              {t('network.milestonePer', { reward: milestone.rewardHcoin, size: milestone.size })}
             </span>
           </div>
           <p className="text-[11px] text-gray-400 leading-snug">
-            {milestone.qualifiedUntilNext > 0 ? (
-              <>
-                <span className="text-white font-semibold">{milestone.qualifiedUntilNext}</span>{' '}
-                more {milestone.qualifiedUntilNext === 1 ? 'qualified referral' : 'qualified referrals'} to
-                your next reward at{' '}
-                <span className="text-gold-300 font-semibold">{milestone.nextMilestoneAt}</span>.
-              </>
-            ) : (
-              <>Reward unlocked — invite one more friend to start the next tier.</>
-            )}
+            {milestone.qualifiedUntilNext > 0
+              ? t('network.moreToNext', {
+                  count: milestone.qualifiedUntilNext,
+                  label: milestone.qualifiedUntilNext === 1
+                    ? t('network.qualifiedReferral')
+                    : t('network.qualifiedReferrals'),
+                  next: milestone.nextMilestoneAt,
+                })
+              : t('network.unlocked')}
           </p>
           <div className="mt-2 h-1 rounded-full bg-space-600 overflow-hidden">
             <div
@@ -173,16 +176,13 @@ export default function Network() {
             />
           </div>
           <p className="mt-2 text-[10px] text-amber-200/80 leading-snug italic">
-            Only invited users with at least one completed deposit count as qualified referrals.
+            {t('network.qualifyingNote')}
           </p>
           {milestone.milestonesPaid > 0 && (
             <p className="mt-1.5 text-[10.5px] text-gray-500">
-              {milestone.milestonesPaid} milestone{milestone.milestonesPaid === 1 ? '' : 's'} reached ·
-              earned{' '}
-              <span className="text-gold-300 font-semibold">
-                {milestone.totalRewardEarnedHcoin}
-              </span>{' '}
-              H from referrals.
+              {milestone.milestonesPaid === 1
+                ? t('network.milestonesPaidOne', { count: milestone.milestonesPaid, total: milestone.totalRewardEarnedHcoin })
+                : t('network.milestonesPaidMany', { count: milestone.milestonesPaid, total: milestone.totalRewardEarnedHcoin })}
             </p>
           )}
         </div>
@@ -335,15 +335,15 @@ export default function Network() {
       {empty && (
         <div className="absolute inset-0 grid place-items-center px-6 z-30">
           <div className="bg-space-700/80 backdrop-blur-xl border border-space-500 rounded-2xl p-6 text-center max-w-xs">
-            <h3 className="font-semibold text-white">Invite friends to grow your network</h3>
-            <p className="text-xs text-gray-400 mt-1">Share your code to start earning rewards together.</p>
+            <h3 className="font-semibold text-white">{t('network.inviteFriends')}</h3>
+            <p className="text-xs text-gray-400 mt-1">{t('network.shareDesc')}</p>
             <p className="mt-2 font-mono text-teal-300">{code}</p>
             <button
               type="button"
               onClick={copyInvite}
               className="mt-4 h-11 px-5 rounded-full bg-teal-500 text-space-900 font-semibold inline-flex items-center gap-2 shadow-teal-glow"
             >
-              <Copy size={16} /> Copy Invite
+              <Copy size={16} /> {t('network.copyInvite')}
             </button>
           </div>
         </div>
@@ -357,7 +357,7 @@ export default function Network() {
             onClick={copyInvite}
             className="flex items-center gap-2 h-10 px-4 rounded-full bg-space-700/80 backdrop-blur-xl border border-space-500 text-sm text-teal-300"
           >
-            <Copy size={14} /> Copy invite ({code})
+            <Copy size={14} /> {t('network.copyInviteWith', { code })}
           </motion.button>
         </div>
       )}

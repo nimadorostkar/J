@@ -1,16 +1,18 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { Check, CircleDot, Mail, Coins, Award } from 'lucide-react'
+import { useT } from '../i18n/LanguageContext.jsx'
 
 function initials(name) {
   return name.split(' ').map((p) => p[0]).slice(0, 2).join('')
 }
 
 // Four-step pipeline. Each step "fires" once the corresponding fact is true.
+// `labelKey` resolves through useT() at render time so it reacts to language.
 const STATUS_STEPS = [
-  { code: 'registered',              label: 'Registered',              icon: CircleDot },
-  { code: 'verified',                label: 'Email Verified',          icon: Mail },
-  { code: 'first_deposit_completed', label: 'First Deposit Completed', icon: Coins },
-  { code: 'qualified',               label: 'Qualified Referral',      icon: Award },
+  { code: 'registered',              labelKey: 'network.stepRegistered',   icon: CircleDot },
+  { code: 'verified',                labelKey: 'network.stepVerified',     icon: Mail },
+  { code: 'first_deposit_completed', labelKey: 'network.stepFirstDeposit', icon: Coins },
+  { code: 'qualified',               labelKey: 'network.stepQualified',    icon: Award },
 ]
 
 function activeIndex(node) {
@@ -23,6 +25,7 @@ function activeIndex(node) {
 }
 
 export default function NodePopup({ node, onClose }) {
+  const t = useT()
   return (
     <AnimatePresence>
       {node && (
@@ -61,7 +64,7 @@ export default function NodePopup({ node, onClose }) {
               )}
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-white truncate">{node.name}</div>
-                <div className="text-xs text-gray-400">Joined {node.joined}</div>
+                <div className="text-xs text-gray-400">{t('network.joined', { date: node.joined })}</div>
               </div>
               <span
                 className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
@@ -71,18 +74,18 @@ export default function NodePopup({ node, onClose }) {
                 }`}
                 title={
                   node.isQualified
-                    ? 'Counts toward milestone rewards'
-                    : 'Does not count toward milestones yet — waiting for first deposit'
+                    ? t('network.countsTowardMilestone')
+                    : t('network.pendingDeposit')
                 }
               >
-                {node.isQualified ? 'Qualified' : 'Pending'}
+                {node.isQualified ? t('network.qualifiedPill') : t('network.pendingPill')}
               </span>
             </div>
 
             {/* Status pipeline */}
             <div className="mt-5">
               <div className="text-[10px] font-bold tracking-[0.12em] text-white/50 uppercase mb-2">
-                Status
+                {t('network.statusHeading')}
               </div>
               <ol className="space-y-1.5">
                 {STATUS_STEPS.map((s, i) => {
@@ -106,21 +109,19 @@ export default function NodePopup({ node, onClose }) {
                       >
                         {reached ? <Check size={12} /> : <Icon size={11} />}
                       </span>
-                      <span>{s.label}</span>
+                      <span>{t(s.labelKey)}</span>
                     </li>
                   )
                 })}
               </ol>
               {!node.isQualified && node.level === 1 && (
                 <p className="mt-3 text-[11px] text-amber-200/80 leading-snug italic">
-                  Only invited users who complete at least one deposit count
-                  toward your milestone rewards.
+                  {t('network.onlyDepositCount')}
                 </p>
               )}
               {node.level === 2 && (
                 <p className="mt-3 text-[11px] text-gray-400 leading-snug italic">
-                  Level-2 referrals don't count toward milestone rewards — only
-                  your direct (Level-1) invites do.
+                  {t('network.l2NoCount')}
                 </p>
               )}
             </div>
@@ -130,7 +131,7 @@ export default function NodePopup({ node, onClose }) {
               onClick={onClose}
               className="w-full mt-5 h-10 rounded-full bg-space-600 hover:bg-space-500 text-sm text-white transition"
             >
-              Close
+              {t('common.close')}
             </button>
           </motion.div>
         </motion.div>

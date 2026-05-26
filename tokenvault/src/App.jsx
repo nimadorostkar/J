@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useAuth } from './context/AuthContext.jsx'
+import { useT } from './i18n/LanguageContext.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -28,9 +29,10 @@ function Public({ children }) {
 }
 
 function BootSplash() {
+  const t = useT()
   return (
     <div className="min-h-[100dvh] grid place-items-center bg-space-900 text-teal-300">
-      <span className="text-sm">Loading…</span>
+      <span className="text-sm">{t('common.loading')}</span>
     </div>
   )
 }

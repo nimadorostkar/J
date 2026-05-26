@@ -4,6 +4,7 @@ import BottomSheet from './BottomSheet.jsx'
 import Field from './Field.jsx'
 import { useToast } from '../context/ToastContext.jsx'
 import { useWallet } from '../context/WalletContext.jsx'
+import { useT } from '../i18n/LanguageContext.jsx'
 import { walletApi } from '../api'
 
 const NETWORKS = [
@@ -20,6 +21,7 @@ export default function WithdrawModal({ open, onClose }) {
   const [eligibility, setEligibility] = useState(null)
   const { showToast } = useToast()
   const { wallet, initWithdraw } = useWallet()
+  const t = useT()
 
   const conversion = Number(wallet?.conversionRate || 10)
   const usdtEquiv = tokens * conversion
@@ -41,18 +43,18 @@ export default function WithdrawModal({ open, onClose }) {
   }, [open, network])
 
   const onConfirm = async () => {
-    if (tokens < 1) return showToast('Withdraw at least 1 token', 'error')
-    if (tokens > (wallet?.hCoins || 0)) return showToast('Insufficient balance', 'error')
-    if (!address || address.length < 10) return showToast('Enter a valid wallet address', 'error')
+    if (tokens < 1) return showToast(t('withdraw.atLeastOne'), 'error')
+    if (tokens > (wallet?.hCoins || 0)) return showToast(t('withdraw.insufficient'), 'error')
+    if (!address || address.length < 10) return showToast(t('withdraw.validAddress'), 'error')
     setSubmitting(true)
     try {
       await initWithdraw({ network, address: address.trim(), tokens: String(tokens) })
-      showToast(`Withdrawal of ${tokens} H Coins submitted`, 'success')
+      showToast(t('withdraw.submitted', { amount: tokens }), 'success')
       setTokens(1)
       setAddress('')
       onClose?.()
     } catch (e) {
-      showToast(e?.message || 'Withdrawal failed', 'error')
+      showToast(e?.message || t('withdraw.failed'), 'error')
     } finally {
       setSubmitting(false)
     }
@@ -61,21 +63,21 @@ export default function WithdrawModal({ open, onClose }) {
   const canWithdraw = eligibility?.eligible !== false
 
   return (
-    <BottomSheet open={open} onClose={onClose} title="Withdraw">
+    <BottomSheet open={open} onClose={onClose} title={t('withdraw.title')}>
       {eligibility && !eligibility.eligible && (
         <div className="mb-3 rounded-xl border border-amber-400/40 bg-amber-500/10 px-3 py-2 text-amber-200 text-xs">
-          {eligibility.reason || 'Withdrawals are temporarily locked.'}
+          {eligibility.reason || t('withdraw.locked')}
         </div>
       )}
 
       <div className="bg-space-800 border border-space-500 rounded-2xl p-4 mb-4">
-        <div className="text-xs text-gray-400 mb-3">Number of tokens</div>
+        <div className="text-xs text-gray-400 mb-3">{t('withdraw.numberTokens')}</div>
         <div className="flex items-center justify-between">
           <button
             type="button"
-            onClick={() => setTokens((t) => Math.max(1, t - 1))}
+            onClick={() => setTokens((n) => Math.max(1, n - 1))}
             className="h-11 w-11 rounded-full bg-space-600 border border-space-500 flex items-center justify-center text-white hover:border-teal-400 transition active:scale-95"
-            aria-label="Decrease"
+            aria-label={t('withdraw.decrease')}
           >
             <Minus size={18} />
           </button>
@@ -85,9 +87,9 @@ export default function WithdrawModal({ open, onClose }) {
           </div>
           <button
             type="button"
-            onClick={() => setTokens((t) => Math.min(Math.floor(wallet?.hCoins || 0), t + 1))}
+            onClick={() => setTokens((n) => Math.min(Math.floor(wallet?.hCoins || 0), n + 1))}
             className="h-11 w-11 rounded-full bg-space-600 border border-space-500 flex items-center justify-center text-white hover:border-teal-400 transition active:scale-95"
-            aria-label="Increase"
+            aria-label={t('withdraw.increase')}
           >
             <Plus size={18} />
           </button>
@@ -95,8 +97,8 @@ export default function WithdrawModal({ open, onClose }) {
       </div>
 
       <Field
-        label="Destination Wallet Address"
-        placeholder="Paste address"
+        label={t('withdraw.destination')}
+        placeholder={t('withdraw.pasteAddress')}
         value={address}
         onChange={(e) => setAddress(e.target.value)}
       />
@@ -118,9 +120,9 @@ export default function WithdrawModal({ open, onClose }) {
         ))}
       </div>
 
-      <div className="mt-4 text-xs text-gray-400">Network fee: {fee} USDT</div>
+      <div className="mt-4 text-xs text-gray-400">{t('withdraw.networkFee', { fee })}</div>
       <div className="mt-1 flex items-baseline justify-between">
-        <span className="text-sm text-gray-300">Total receivable</span>
+        <span className="text-sm text-gray-300">{t('withdraw.totalReceivable')}</span>
         <span className="font-mono font-bold text-teal-300 text-base">{receivable.toFixed(2)} USDT</span>
       </div>
 
@@ -130,7 +132,7 @@ export default function WithdrawModal({ open, onClose }) {
         onClick={onConfirm}
         className="w-full mt-5 h-12 rounded-full bg-teal-500 hover:bg-teal-400 text-space-900 font-semibold shadow-teal-glow transition active:scale-[0.98] disabled:opacity-50"
       >
-        {submitting ? 'Submitting…' : 'Confirm Withdrawal'}
+        {submitting ? t('withdraw.submitting') : t('withdraw.confirm')}
       </button>
     </BottomSheet>
   )

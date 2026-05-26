@@ -115,3 +115,19 @@ input[type='number'] { -moz-appearance: textfield; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(45, 212, 191, 0.2); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(45, 212, 191, 0.4); }
+
+/* --- RTL support (Farsi & Arabic) ----------------------------------------
+   When <html dir="rtl"> is set by LanguageContext, mirror small bits that
+   Tailwind's logical-property classes (e.g. ms-/me-) don't cover, and use
+   a fallback font that ships glyphs for Arabic/Persian script.
+-------------------------------------------------------------------------- */
+html[dir='rtl'] body,
+html[dir='rtl'] {
+  font-family: 'Outfit', 'Vazirmatn', 'Tahoma', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* Tailwind utilities written with right-/left- positioning need flipping so
+   they keep the same visual side relative to the user (start/end). */
+html[dir='rtl'] .rtl-flip-right-3 { right: auto; left: 0.75rem; }
+html[dir='rtl'] .rtl-flip-left-3  { left: auto;  right: 0.75rem; }
+

@@ -3,8 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#060A14" />
+
     <title>Houston — Your Gateway to Token Rewards</title>
+    <meta name="description" content="Your gateway to token rewards. Stake, earn, and grow with the H Coin economy." />
+
+    <!-- PWA / theming -->
+    <meta name="theme-color" content="#060A14" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="48x48" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- iOS standalone -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Houston" />
+
+    <!-- Windows tile color -->
+    <meta name="msapplication-TileColor" content="#060A14" />
+    <meta name="msapplication-TileImage" content="/icon-192.png" />
+
+    <!-- Boot splash background so the page doesn't flash white while the
+         JS bundle and stylesheet load. Matches index.css's --space-900. -->
+    <style>
+      html, body { background: #060A14; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

@@ -4,6 +4,7 @@ import { Bell, Bot, Sparkles, TrendingUp, Clock, CheckCircle2 } from 'lucide-rea
 import { tradeApi } from '../api'
 import { useWallet } from '../context/WalletContext.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import { useT } from '../i18n/LanguageContext.jsx'
 import Countdown from '../components/Countdown.jsx'
 import CountUp from '../components/CountUp.jsx'
 import { Coins } from 'lucide-react'
@@ -53,6 +54,7 @@ function botVariant(type) {
 export default function Trade() {
   const { wallet, reload: reloadWallet } = useWallet()
   const { showToast } = useToast()
+  const t = useT()
 
   const [bots, setBots] = useState(null)        // { basic: {...}, expert: {...} }
   const [active, setActive] = useState(null)    // BotSession | null
@@ -99,7 +101,7 @@ export default function Trade() {
 
   const onActivate = async (botType) => {
     if (active) {
-      showToast('Another bot is already running.', 'error')
+      showToast(t('trade.anotherRunningToast'), 'error')
       return
     }
     setActivating(botType)
@@ -108,9 +110,9 @@ export default function Trade() {
       setActive(session)
       await reloadWallet()
       await refresh()
-      showToast('Bot activated — fee deducted.', 'success')
+      showToast(t('trade.activatedToast'), 'success')
     } catch (e) {
-      showToast(e?.message || 'Activation failed', 'error')
+      showToast(e?.message || t('trade.activationFailed'), 'error')
     } finally {
       setActivating(null)
     }
@@ -133,7 +135,7 @@ export default function Trade() {
     <div className="relative w-full max-w-[480px] mx-auto px-5 pt-6 pb-28 bg-space-900 min-h-[100dvh]">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
-        <h1 className="text-2xl font-bold">Trade Bots</h1>
+        <h1 className="text-2xl font-bold">{t('trade.title')}</h1>
         <span className="h-10 w-10 grid place-items-center rounded-full border border-space-500 bg-space-700">
           <Bell size={18} className="text-gray-300" />
         </span>
@@ -147,13 +149,13 @@ export default function Trade() {
         transition={{ duration: 0.4 }}
         className="rounded-3xl border border-teal-400/40 bg-gradient-to-br from-teal-500/10 to-space-700 p-5 shadow-teal-glow"
       >
-        <div className="text-xs text-gray-400 uppercase tracking-wider">Available Balance</div>
+        <div className="text-xs text-gray-400 uppercase tracking-wider">{t('trade.availableBalance')}</div>
         <div className="flex items-center gap-3 mt-2">
           <div className="h-11 w-11 rounded-full bg-gradient-to-br from-gold-300 to-gold-500 grid place-items-center shadow-gold-glow">
             <Coins size={22} className="text-amber-900" strokeWidth={2.5} />
           </div>
           <div className="font-mono font-bold text-[36px] leading-none">
-            <CountUp to={wallet?.hCoins || 0} /> <span className="text-white">H Coins</span>
+            <CountUp to={wallet?.hCoins || 0} /> <span className="text-white">{t('wallet.hCoins')}</span>
           </div>
         </div>
         <div className="text-gray-400 text-[15px] mt-2">
@@ -166,6 +168,7 @@ export default function Trade() {
         <ActiveBotCard
           session={active}
           onComplete={async () => { await refresh(); await reloadWallet() }}
+          t={t}
         />
       )}
 
@@ -177,9 +180,9 @@ export default function Trade() {
           const fee = previewFee(cfg)
           const disabled = !!active || activating === cfg.type || balance <= 0
           const reason = active
-            ? 'Another bot is running'
+            ? t('trade.anotherRunning')
             : balance <= 0
-              ? 'Deposit some H Coins first'
+              ? t('trade.depositFirst')
               : null
           return (
             <BotCard
@@ -192,6 +195,7 @@ export default function Trade() {
               disabledReason={reason}
               busy={activating === cfg.type}
               onActivate={() => onActivate(cfg.type)}
+              t={t}
             />
           )
         })}
@@ -200,20 +204,24 @@ export default function Trade() {
       {/* History */}
       <div className="mt-7">
         <div className="flex items-center justify-between mb-3 px-1">
-          <h2 className="text-base font-semibold">Bot History</h2>
+          <h2 className="text-base font-semibold">{t('trade.botHistory')}</h2>
           {sessions.length > 0 && (
-            <span className="text-xs text-gray-500">{sessions.length} session{sessions.length === 1 ? '' : 's'}</span>
+            <span className="text-xs text-gray-500">
+              {sessions.length === 1
+                ? t('trade.sessionsOne', { count: sessions.length })
+                : t('trade.sessionsMany', { count: sessions.length })}
+            </span>
           )}
         </div>
         <div className="bg-space-700 border border-space-500 rounded-2xl overflow-hidden divide-y divide-space-500">
           {loading ? (
-            <div className="px-4 py-6 text-center text-xs text-gray-500">Loading…</div>
+            <div className="px-4 py-6 text-center text-xs text-gray-500">{t('common.loading')}</div>
           ) : sessions.length === 0 ? (
             <div className="px-4 py-6 text-center text-xs text-gray-500">
-              You haven't run a bot yet.
+              {t('trade.noBotYet')}
             </div>
           ) : (
-            sessions.map((s) => <SessionRow key={s.id} s={s} />)
+            sessions.map((s) => <SessionRow key={s.id} s={s} t={t} />)
           )}
         </div>
       </div>
@@ -223,7 +231,7 @@ export default function Trade() {
 
 /* ── components ─────────────────────────────────────────────────────── */
 
-function BotCard({ cfg, fee, previewMin, previewMax, disabled, disabledReason, busy, onActivate }) {
+function BotCard({ cfg, fee, previewMin, previewMax, disabled, disabledReason, busy, onActivate, t }) {
   const v = botVariant(cfg.type)
   const Icon = v.Icon
   return (
@@ -240,20 +248,20 @@ function BotCard({ cfg, fee, previewMin, previewMax, disabled, disabledReason, b
         <div className="flex-1 min-w-0">
           <div className="font-semibold text-white">{cfg.label}</div>
           <div className="text-[11px] text-gray-400">
-            {formatDuration(cfg.durationSeconds)} cycle · Profit based on smart trading
+            {t('trade.cycleSubtitle', { duration: formatDuration(cfg.durationSeconds) })}
           </div>
         </div>
       </div>
 
       <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
         <div className="rounded-xl bg-space-800/60 border border-space-500 p-2.5">
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider">Activation Fee</div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider">{t('trade.activationFee')}</div>
           <div className="font-mono font-semibold text-rose-300 mt-0.5">
             -{formatHcoin(fee)} H <span className="text-gray-500">({cfg.feePercent}%)</span>
           </div>
         </div>
         <div className="rounded-xl bg-space-800/60 border border-space-500 p-2.5">
-          <div className="text-[10px] text-gray-500 uppercase tracking-wider">Est. Profit</div>
+          <div className="text-[10px] text-gray-500 uppercase tracking-wider">{t('trade.estProfit')}</div>
           <div className={`font-mono font-semibold ${v.accent} mt-0.5`}>
             +{formatHcoin(previewMin)} – {formatHcoin(previewMax)} H
           </div>
@@ -267,13 +275,13 @@ function BotCard({ cfg, fee, previewMin, previewMax, disabled, disabledReason, b
         title={disabledReason || undefined}
         className={`mt-3 w-full h-11 rounded-full font-semibold text-sm transition active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed ${v.button}`}
       >
-        {busy ? 'Activating…' : disabled && disabledReason ? disabledReason : `Activate ${cfg.label}`}
+        {busy ? t('trade.activatingDots') : disabled && disabledReason ? disabledReason : t('trade.activate', { label: cfg.label })}
       </button>
     </motion.div>
   )
 }
 
-function ActiveBotCard({ session, onComplete }) {
+function ActiveBotCard({ session, onComplete, t }) {
   const v = botVariant(session.botType)
   const Icon = v.Icon
   const endTime = useMemo(
@@ -304,29 +312,33 @@ function ActiveBotCard({ session, onComplete }) {
       <div className="flex items-center gap-2 mb-3">
         <Icon size={16} className={v.accent} />
         <span className={`text-[11px] font-semibold ${v.accent} uppercase tracking-wider`}>
-          {session.botLabel} · Running
+          {session.botLabel} · {t('trade.running')}
         </span>
         <span className="ml-auto text-[10px] text-gray-500">
-          Fee paid: <span className="font-mono text-rose-300">{formatHcoin(session.feeAmountHcoin)} H</span>
+          {t('trade.feePaid')} <span className="font-mono text-rose-300">{formatHcoin(session.feeAmountHcoin)} H</span>
         </span>
       </div>
 
       {ready ? (
         <div className="rounded-xl bg-emerald-500/15 border border-emerald-400/30 p-3 text-center text-sm text-emerald-300">
-          Finalizing profit…
+          {t('trade.finalizing')}
         </div>
       ) : (
         endTime && <Countdown endTime={endTime} variant={session.botType === 'expert' ? 'gold' : 'teal'} compact />
       )}
 
       <p className="mt-3 text-[11px] text-gray-400 text-center leading-snug">
-        Expected profit: <span className={v.accent}>{session.profitMinPercent}%–{session.profitMaxPercent}%</span> of your starting balance ({formatHcoin(session.balanceAtStartHcoin)} H).
+        {t('trade.expected', {
+          min: session.profitMinPercent,
+          max: session.profitMaxPercent,
+          balance: formatHcoin(session.balanceAtStartHcoin),
+        })}
       </p>
     </motion.div>
   )
 }
 
-function SessionRow({ s }) {
+function SessionRow({ s, t }) {
   const isCompleted = s.status === 'completed'
   const isActive = s.status === 'active'
   const v = botVariant(s.botType)
@@ -350,7 +362,7 @@ function SessionRow({ s }) {
         }`}>
           {s.profitAmountHcoin
             ? `+${formatHcoin(s.profitAmountHcoin)} H`
-            : isActive ? 'pending' : '—'}
+            : isActive ? t('trade.pending') : '—'}
         </div>
       </div>
     </div>
