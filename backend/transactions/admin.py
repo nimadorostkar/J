@@ -33,6 +33,8 @@ def force_complete_deposit(modeladmin, request, queryset):
             wallet = Wallet.objects.select_for_update().get(pk=tx.wallet_id)
             is_first = not wallet.has_completed_deposit
             wallet.usdt_balance = wallet.usdt_balance + (tx.amount_usdt or Decimal(0))
+            # Match verify_deposit + manual deposit: credit H Coins too.
+            wallet.h_coin_balance = wallet.h_coin_balance + (tx.amount_hcoin or Decimal(0))
             if is_first:
                 wallet.has_completed_deposit = True
             wallet.save()

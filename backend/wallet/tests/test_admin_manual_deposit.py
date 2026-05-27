@@ -75,6 +75,9 @@ class AdminManualDepositTests(APITestCase):
 
         self.user.wallet.refresh_from_db()
         self.assertEqual(self.user.wallet.usdt_balance, Decimal("25.5"))
+        # H Coin balance must also rise — same behaviour as a real deposit.
+        # USDT_PER_HCOIN=1.0 in @override_settings, so 25.5 USDT → 25.5 H Coins.
+        self.assertEqual(self.user.wallet.h_coin_balance, Decimal("25.5"))
         self.assertTrue(self.user.wallet.has_completed_deposit)
 
         tx = Transaction.objects.get(user=self.user)
@@ -126,6 +129,7 @@ class AdminManualDepositTests(APITestCase):
 
         self.user.wallet.refresh_from_db()
         self.assertEqual(self.user.wallet.usdt_balance, Decimal("17"))
+        self.assertEqual(self.user.wallet.h_coin_balance, Decimal("17"))
 
     # ─── validation ───────────────────────────────────────────────────
     def test_missing_user_returns_400(self):
@@ -171,9 +175,10 @@ class AdminManualDepositTests(APITestCase):
         self.assertEqual(r2.status_code, 201)
         self.assertEqual(r1.data["id"], r2.data["id"])
 
-        # Wallet credited only ONCE
+        # Wallet credited only ONCE on both balances
         self.user.wallet.refresh_from_db()
         self.assertEqual(self.user.wallet.usdt_balance, Decimal("9"))
+        self.assertEqual(self.user.wallet.h_coin_balance, Decimal("9"))
         self.assertEqual(
             Transaction.objects.filter(user=self.user).count(), 1
         )

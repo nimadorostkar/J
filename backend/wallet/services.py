@@ -183,11 +183,14 @@ def admin_credit_manual_deposit(
         wallet = Wallet.objects.select_for_update().get(user=target_user)
         is_first = not wallet.has_completed_deposit
         wallet.usdt_balance = wallet.usdt_balance + amount_usdt
+        # Mirror the real-deposit flow: credit the equivalent H Coin balance
+        # so the game-currency wallet reflects the deposit just like USDT.
+        wallet.h_coin_balance = wallet.h_coin_balance + amount_hcoin
+        update_fields = ["usdt_balance", "h_coin_balance", "updated_at"]
         if is_first:
             wallet.has_completed_deposit = True
-            wallet.save(update_fields=["usdt_balance", "has_completed_deposit", "updated_at"])
-        else:
-            wallet.save(update_fields=["usdt_balance", "updated_at"])
+            update_fields.append("has_completed_deposit")
+        wallet.save(update_fields=update_fields)
 
         tx = Transaction.objects.create(
             user=target_user,

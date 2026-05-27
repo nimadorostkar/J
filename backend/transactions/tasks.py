@@ -71,6 +71,9 @@ def verify_deposit(self, transaction_id):
         wallet = Wallet.objects.select_for_update().get(pk=tx.wallet_id)
         is_first = not wallet.has_completed_deposit
         wallet.usdt_balance = wallet.usdt_balance + (tx.amount_usdt or Decimal(0))
+        # Also credit the H Coin (game currency) balance — both balances
+        # should rise on a deposit so the user can play with what they put in.
+        wallet.h_coin_balance = wallet.h_coin_balance + (tx.amount_hcoin or Decimal(0))
         if is_first:
             wallet.has_completed_deposit = True
         wallet.save()
