@@ -52,24 +52,25 @@ class AdminManualDepositTests(APITestCase):
     # ─── auth / permission ────────────────────────────────────────────
     def test_anonymous_rejected(self):
         client = APIClient()
-        r = client.post(URL, {"userId": self.user.pk, "amountUsdt": "10"}, format="json")
+        r = client.post(URL, {"userId": str(self.user.pk), "amountUsdt": "10"}, format="json")
         self.assertEqual(r.status_code, 401)
 
     def test_non_staff_user_rejected(self):
         client = APIClient()
         client.force_authenticate(self.user)
-        r = client.post(URL, {"userId": self.user.pk, "amountUsdt": "10"}, format="json")
+        r = client.post(URL, {"userId": str(self.user.pk), "amountUsdt": "10"}, format="json")
         self.assertEqual(r.status_code, 403)
 
     # ─── happy path ───────────────────────────────────────────────────
     def test_credits_wallet_and_creates_completed_transaction(self):
         client = APIClient()
         client.force_authenticate(self.admin)
-        r = client.post(
-            URL,
-            {"userId": self.user.pk, "amountUsdt": "25.5", "note": "support refund"},
-            format="json",
-        )
+        with self.captureOnCommitCallbacks(execute=True):
+            r = client.post(
+                URL,
+                {"userId": str(self.user.pk), "amountUsdt": "25.5", "note": "support refund"},
+                format="json",
+            )
         self.assertEqual(r.status_code, 201, r.content)
 
         self.user.wallet.refresh_from_db()
@@ -112,11 +113,13 @@ class AdminManualDepositTests(APITestCase):
         # First deposit flips has_completed_deposit + would trigger referral hook
         client = APIClient()
         client.force_authenticate(self.admin)
-        client.post(URL, {"userId": self.user.pk, "amountUsdt": "10"}, format="json")
+        with self.captureOnCommitCallbacks(execute=True):
+            client.post(URL, {"userId": str(self.user.pk), "amountUsdt": "10"}, format="json")
         self.mock_side_effects.reset_mock()
 
         # Second deposit must NOT re-fire the first-deposit branch
-        r = client.post(URL, {"userId": self.user.pk, "amountUsdt": "7"}, format="json")
+        with self.captureOnCommitCallbacks(execute=True):
+            r = client.post(URL, {"userId": str(self.user.pk), "amountUsdt": "7"}, format="json")
         self.assertEqual(r.status_code, 201)
         kwargs = self.mock_side_effects.call_args.kwargs
         self.assertEqual(kwargs["is_first"], False)
@@ -140,13 +143,13 @@ class AdminManualDepositTests(APITestCase):
     def test_negative_amount_rejected(self):
         client = APIClient()
         client.force_authenticate(self.admin)
-        r = client.post(URL, {"userId": self.user.pk, "amountUsdt": "-5"}, format="json")
+        r = client.post(URL, {"userId": str(self.user.pk), "amountUsdt": "-5"}, format="json")
         self.assertEqual(r.status_code, 400)
 
     def test_zero_amount_rejected(self):
         client = APIClient()
         client.force_authenticate(self.admin)
-        r = client.post(URL, {"userId": self.user.pk, "amountUsdt": "0"}, format="json")
+        r = client.post(URL, {"userId": str(self.user.pk), "amountUsdt": "0"}, format="json")
         self.assertEqual(r.status_code, 400)
 
     # ─── idempotency ──────────────────────────────────────────────────
@@ -156,13 +159,13 @@ class AdminManualDepositTests(APITestCase):
         key = "11111111-2222-3333-4444-555555555555"
 
         r1 = client.post(
-            URL, {"userId": self.user.pk, "amountUsdt": "9"},
+            URL, {"userId": str(self.user.pk), "amountUsdt": "9"},
             format="json", HTTP_IDEMPOTENCY_KEY=key,
         )
         self.assertEqual(r1.status_code, 201)
 
         r2 = client.post(
-            URL, {"userId": self.user.pk, "amountUsdt": "9"},
+            URL, {"userId": str(self.user.pk), "amountUsdt": "9"},
             format="json", HTTP_IDEMPOTENCY_KEY=key,
         )
         self.assertEqual(r2.status_code, 201)

@@ -10,6 +10,7 @@ from django.core.cache import cache
 from django.db import transaction as db_tx
 from django.http import HttpResponse
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAdminUser, IsAuthenticated
@@ -296,7 +297,12 @@ class AdminManualDepositView(APIView):
         User = get_user_model()
         target = None
         if v.get("userId"):
-            target = User.objects.filter(pk=v["userId"]).first()
+            # User.id is a UUID — an invalid string would otherwise raise
+            # ValidationError from the DB layer, surfacing as a 500.
+            try:
+                target = User.objects.filter(pk=v["userId"]).first()
+            except (ValueError, ValidationError):
+                target = None
         elif v.get("userEmail"):
             target = User.objects.filter(email__iexact=v["userEmail"]).first()
         if not target:
