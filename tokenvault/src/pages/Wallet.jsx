@@ -20,6 +20,7 @@ import CountUp from '../components/CountUp.jsx'
 import { TransactionSkeleton } from '../components/Skeleton.jsx'
 import DepositModal from '../components/DepositModal.jsx'
 import WithdrawModal from '../components/WithdrawModal.jsx'
+import NotificationsSheet from '../components/NotificationsSheet.jsx'
 import { notificationsApi } from '../api'
 
 function txIcon(type) {
@@ -47,6 +48,7 @@ export default function WalletPage() {
   const t = useT()
   const [showDeposit, setShowDeposit] = useState(false)
   const [showWithdraw, setShowWithdraw] = useState(false)
+  const [showNotifs, setShowNotifs] = useState(false)
   const [tick, setTick] = useState(0)
   const [busy, setBusy] = useState(false)
   const [unread, setUnread] = useState(0)
@@ -133,13 +135,7 @@ export default function WalletPage() {
         <button
           type="button"
           aria-label={t('wallet.notifications')}
-          onClick={async () => {
-            try {
-              await notificationsApi.markAllRead()
-              setUnread(0)
-              showToast(t('wallet.markedAllRead'), 'success')
-            } catch (e) { showToast(e?.message || t('wallet.couldNotUpdate'), 'error') }
-          }}
+          onClick={() => setShowNotifs(true)}
           className="relative h-10 w-10 grid place-items-center rounded-full border border-space-500 bg-space-700 hover:border-teal-400 transition"
         >
           <Bell size={18} className="text-gray-300" />
@@ -344,6 +340,20 @@ export default function WalletPage() {
 
       <DepositModal open={showDeposit} onClose={() => setShowDeposit(false)} />
       <WithdrawModal open={showWithdraw} onClose={() => setShowWithdraw(false)} />
+      <NotificationsSheet
+        open={showNotifs}
+        onClose={() => {
+          setShowNotifs(false)
+          // Refresh the badge count when the sheet closes — the user may have
+          // read items individually inside the sheet.
+          notificationsApi.unreadCount()
+            .then((r) => setUnread(r?.unread || 0))
+            .catch(() => {})
+        }}
+        onUnreadChange={(v) =>
+          setUnread((prev) => (typeof v === 'function' ? v(prev) : v))
+        }
+      />
     </div>
   )
 }
