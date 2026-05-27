@@ -59,9 +59,10 @@ class WithdrawInitSerializer(serializers.Serializer):
 class AdminManualDepositSerializer(serializers.Serializer):
     """Body for POST /api/v1/wallet/admin/manual-deposit/.
 
-    Accepts EITHER `userId` (preferred) OR `userEmail` to look up the target.
+    Accepts EITHER `userId` (UUID string, since users.User uses UUID pk) OR
+    `userEmail` to look up the target.
     """
-    userId = serializers.IntegerField(required=False)
+    userId = serializers.CharField(required=False, allow_blank=False, max_length=64)
     userEmail = serializers.CharField(required=False, allow_blank=False, max_length=254)
     amountUsdt = serializers.DecimalField(
         max_digits=18, decimal_places=8, min_value=Decimal("0.00000001"),
