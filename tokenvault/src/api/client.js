@@ -7,7 +7,7 @@
 // overrides this with http://localhost:8000/api/v1 via .env.
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') ||
-  'https://houston.avro-cafe.ir/api/v1'
+  'https://h.avro-cafe.ir/api/v1'
 
 const ACCESS_KEY = 'tokenvault.accessToken'
 const REFRESH_KEY = 'tokenvault.refreshToken'
