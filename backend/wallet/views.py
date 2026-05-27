@@ -9,9 +9,10 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction as db_tx
 from django.http import HttpResponse
+from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
@@ -23,8 +24,18 @@ from transactions.tasks import process_withdrawal, verify_deposit
 
 from .address_utils import validate_address
 from .models import DepositAddress, Wallet
-from .serializers import DepositInitSerializer, WalletSerializer, WithdrawInitSerializer
-from .services import assert_can_withdraw, check_withdrawal_eligibility, debit_usdt
+from .serializers import (
+    AdminManualDepositSerializer,
+    DepositInitSerializer,
+    WalletSerializer,
+    WithdrawInitSerializer,
+)
+from .services import (
+    admin_credit_manual_deposit,
+    assert_can_withdraw,
+    check_withdrawal_eligibility,
+    debit_usdt,
+)
 
 
 def _client_ip(request):
@@ -256,3 +267,60 @@ class WithdrawEligibilityView(APIView):
 
     def get(self, request):
         return Response(check_withdrawal_eligibility(request.user).to_dict())
+
+
+class AdminManualDepositView(APIView):
+    """Admin-only endpoint that credits a user's wallet as a real deposit.
+
+    POST /api/v1/wallet/admin/manual-deposit/
+
+    Body (JSON):
+        userId     (int)     — target user, OR
+        userEmail  (str)     — target user (alternative to userId),
+        amountUsdt (decimal) — positive USDT amount,
+        note       (str)     — optional internal note (audit log only).
+
+    Headers (optional):
+        Idempotency-Key      — UUID; safe to retry with the same value.
+
+    Response (201): TransactionSerializer of the created (completed) deposit.
+    """
+
+    permission_classes = [IsAdminUser]
+
+    def post(self, request):
+        ser = AdminManualDepositSerializer(data=request.data)
+        ser.is_valid(raise_exception=True)
+        v = ser.validated_data
+
+        User = get_user_model()
+        target = None
+        if v.get("userId"):
+            target = User.objects.filter(pk=v["userId"]).first()
+        elif v.get("userEmail"):
+            target = User.objects.filter(email__iexact=v["userEmail"]).first()
+        if not target:
+            return Response(
+                {"code": "USER_NOT_FOUND", "message": "Target user not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Make sure the user has a Wallet — same as DepositInitView/WalletView do.
+        Wallet.objects.get_or_create(user=target)
+
+        try:
+            tx = admin_credit_manual_deposit(
+                admin_user=request.user,
+                target_user=target,
+                amount_usdt=v["amountUsdt"],
+                note=v.get("note", ""),
+                idempotency_key=request.headers.get("Idempotency-Key"),
+                ip=_client_ip(request),
+            )
+        except (ValueError, PermissionError) as e:
+            return Response(
+                {"code": "INVALID_REQUEST", "message": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(TransactionSerializer(tx).data, status=status.HTTP_201_CREATED)

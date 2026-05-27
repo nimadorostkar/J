@@ -54,3 +54,23 @@ class WithdrawInitSerializer(serializers.Serializer):
     network = serializers.ChoiceField(choices=["TRC20", "ERC20"])
     address = serializers.CharField(max_length=128)
     tokens = serializers.DecimalField(max_digits=18, decimal_places=8, min_value=Decimal("0.00000001"))
+
+
+class AdminManualDepositSerializer(serializers.Serializer):
+    """Body for POST /api/v1/wallet/admin/manual-deposit/.
+
+    Accepts EITHER `userId` (preferred) OR `userEmail` to look up the target.
+    """
+    userId = serializers.IntegerField(required=False)
+    userEmail = serializers.CharField(required=False, allow_blank=False, max_length=254)
+    amountUsdt = serializers.DecimalField(
+        max_digits=18, decimal_places=8, min_value=Decimal("0.00000001"),
+    )
+    note = serializers.CharField(required=False, allow_blank=True, max_length=500)
+
+    def validate(self, data):
+        if not data.get("userId") and not data.get("userEmail"):
+            raise serializers.ValidationError(
+                {"user": "Provide userId or userEmail."}
+            )
+        return data

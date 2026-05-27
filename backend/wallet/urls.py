@@ -2,6 +2,7 @@
 from django.urls import path
 
 from .views import (
+    AdminManualDepositView,
     DepositAddressQRView,
     DepositAddressView,
     DepositInitView,
@@ -25,4 +26,11 @@ urlpatterns = [
     path("withdraw/", WithdrawInitView.as_view(), name="wallet-withdraw"),
     path("withdraw/eligibility/", WithdrawEligibilityView.as_view(), name="wallet-withdraw-eligibility"),
     path("withdraw/<uuid:tx_id>/", WithdrawStatusView.as_view(), name="wallet-withdraw-status"),
+
+    # Admin-only — caller must be authenticated AND `is_staff`.
+    path(
+        "admin/manual-deposit/",
+        AdminManualDepositView.as_view(),
+        name="wallet-admin-manual-deposit",
+    ),
 ]

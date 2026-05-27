@@ -1,0 +1,48 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}
+  <div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; <a href="{% url 'admin:wallet_wallet_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    &rsaquo; {% trans 'Manual deposit' %}
+  </div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <p style="max-width: 60em;">
+    Credit a user's wallet exactly like a real successful USDT deposit. The
+    created transaction will:
+  </p>
+  <ul>
+    <li>appear in the user's wallet history with <code>type=deposit</code>, <code>status=completed</code>;</li>
+    <li>increase their USDT balance atomically;</li>
+    <li>mark the user as <em>has_completed_deposit</em> on first credit;</li>
+    <li>fire the referral milestone hook for the user's L1 inviter on first credit;</li>
+    <li>send the same in-app notification ("Deposit confirmed") and WebSocket events;</li>
+    <li>write a <code>deposit_complete</code> audit row tagged <code>source=manual</code> with this admin's id.</li>
+  </ul>
+  <hr>
+  <form method="post">
+    {% csrf_token %}
+    <table>
+      {% for field in form %}
+        <tr>
+          <th><label for="{{ field.id_for_label }}">{{ field.label }}:</label></th>
+          <td>
+            {{ field }}
+            {% if field.help_text %}<br><small class="help">{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}<div class="errornote">{{ error }}</div>{% endfor %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+    <div class="submit-row">
+      <input type="submit" value="{% trans 'Credit deposit' %}" class="default">
+      <a href="{{ cancel_url }}" class="button cancel-link">{% trans 'Cancel' %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

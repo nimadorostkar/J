@@ -1,0 +1,11 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block object-tools-items %}
+  <li>
+    <a href="{% url 'admin:wallet_wallet_manual_deposit' %}" class="addlink">
+      {% trans "Manual deposit" %}
+    </a>
+  </li>
+  {{ block.super }}
+{% endblock %}
