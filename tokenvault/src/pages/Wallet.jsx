@@ -164,7 +164,7 @@ export default function WalletPage() {
             <Coins size={22} className="text-amber-900" strokeWidth={2.5} />
           </div>
           <div className="font-mono font-bold text-[36px] leading-none">
-            <CountUp to={wallet.hCoins} /> <span className="text-white">{t('wallet.hCoins')}</span>
+            <CountUp to={wallet.hCoins} maxDecimals={4} /> <span className="text-white">{t('wallet.hCoins')}</span>
           </div>
         </div>
         <div className="text-gray-400 text-[15px] mt-2">
