@@ -3,17 +3,6 @@
   "outputDirectory": "dist",
   "framework": "vite",
   "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "http://mngi8fgq3ea1.dx1dx.com/api/$1"
-    },
-    {
-      "source": "/ws/(.*)",
-      "destination": "http://mngi8fgq3ea1.dx1dx.com/ws/$1"
-    },
-    {
-      "source": "/((?!api/|ws/|assets/|.*\\.).*)",
-      "destination": "/index.html"
-    }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
