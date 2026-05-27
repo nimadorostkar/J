@@ -46,8 +46,8 @@ class AdminManualDepositTests(APITestCase):
         self.user = User.objects.create_user(
             email="alice@example.com", password="x"
         )
-        Wallet.objects.create(user=self.admin)
-        Wallet.objects.create(user=self.user)
+        # A users.signals post_save handler auto-creates a Wallet for every
+        # new User, so we don't need to (and can't) create one here.
 
     # ─── auth / permission ────────────────────────────────────────────
     def test_anonymous_rejected(self):
