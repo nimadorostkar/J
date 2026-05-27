@@ -4,7 +4,7 @@
 
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') ||
-  'http://localhost/api/v1'
+  'http://mngi8fgq3ea1.dx1dx.com/api/v1'
 
 const ACCESS_KEY = 'tokenvault.accessToken'
 const REFRESH_KEY = 'tokenvault.refreshToken'
