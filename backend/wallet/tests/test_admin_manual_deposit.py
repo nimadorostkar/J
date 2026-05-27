@@ -87,7 +87,7 @@ class AdminManualDepositTests(APITestCase):
         audit = AuditLog.objects.filter(action="deposit_complete").first()
         self.assertIsNotNone(audit)
         self.assertEqual(audit.meta.get("source"), "manual")
-        self.assertEqual(audit.meta.get("admin_user_id"), self.admin.pk)
+        self.assertEqual(audit.meta.get("admin_user_id"), str(self.admin.pk))
         self.assertEqual(audit.meta.get("note"), "support refund")
 
         # post-commit dispatcher fired

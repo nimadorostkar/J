@@ -205,6 +205,8 @@ def admin_credit_manual_deposit(
         # Single audit row — same `deposit_complete` action that real
         # deposits emit, with `source="manual"` so reports can filter if
         # they want; without filtering it counts as a normal deposit.
+        # NB: every value must be JSON-serialisable because AuditLog.meta
+        # is a JSONField. Coerce UUIDs/Decimals to strings.
         log_audit(
             "deposit_complete",
             user=target_user,
@@ -213,7 +215,7 @@ def admin_credit_manual_deposit(
             amount=str(amount_usdt),
             first_deposit=is_first,
             source="manual",
-            admin_user_id=admin_user.id,
+            admin_user_id=str(admin_user.pk),
             admin_email=getattr(admin_user, "email", ""),
             note=note or "",
         )
