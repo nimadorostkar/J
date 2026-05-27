@@ -2,9 +2,12 @@
 // Lightweight fetch wrapper with JWT auth, auto-refresh on 401, and typed errors.
 // No external deps.
 
+// Fallback is a RELATIVE path so production hosts (Vercel) can rewrite it
+// to the actual backend without mixed-content issues. Dev / local uses
+// VITE_API_BASE_URL from .env (absolute http://...:8000 or similar).
 const BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, '') ||
-  'http://mngi8fgq3ea1.dx1dx.com/api/v1'
+  '/api/v1'
 
 const ACCESS_KEY = 'tokenvault.accessToken'
 const REFRESH_KEY = 'tokenvault.refreshToken'
