@@ -4,11 +4,15 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "http://mngi8fgq3ea1.dx1dx.com/api/:path*"
+      "source": "/api/(.*)",
+      "destination": "http://mngi8fgq3ea1.dx1dx.com/api/$1"
     },
     {
-      "source": "/(.*)",
+      "source": "/ws/(.*)",
+      "destination": "http://mngi8fgq3ea1.dx1dx.com/ws/$1"
+    },
+    {
+      "source": "/((?!api/|ws/|assets/|.*\\.).*)",
       "destination": "/index.html"
     }
   ]
