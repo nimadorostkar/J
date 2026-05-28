@@ -27,3 +27,11 @@ python-decouple>=3.8
 dj-database-url>=2.2
 qrcode[pil]>=7.4
 requests>=2.32
+
+# ── Crypto payment gateway ──────────────────────────────────────────
+# Outbound (signing) deps. Read paths use plain HTTP against TronGrid
+# / Etherscan, so these are only required when GATEWAY_DRY_RUN=False
+# and you actually broadcast withdrawals. Uncomment in prod images.
+# tronpy>=0.4
+# web3>=6.0
+# eth-account>=0.10

@@ -23,6 +23,7 @@ api_v1 = [
     path("auth/", include("users.urls_auth")),
     path("users/", include("users.urls")),
     path("wallet/", include("wallet.urls")),
+    path("payments/", include("payments.urls")),
     path("referrals/", include("referrals.urls")),
     path("reward/", include("rewards.urls")),
     path("notifications/", include("notifications.urls")),

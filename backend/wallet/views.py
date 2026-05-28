@@ -37,6 +37,11 @@ from .services import (
     check_withdrawal_eligibility,
     debit_usdt,
 )
+from payments.services import (
+    WithdrawalLimitError,
+    assert_within_withdrawal_limits,
+    requires_admin_review,
+)
 
 
 def _client_ip(request):
@@ -211,6 +216,16 @@ class WithdrawInitView(APIView):
 
         amount_usdt = tokens * Decimal(settings.USDT_PER_HCOIN)
         fee = Decimal(settings.WITHDRAWAL_FEE_USDT)
+        net_amount = amount_usdt - fee
+
+        # Per-tx min/max + 24h daily cap (raises WithdrawalLimitError).
+        try:
+            assert_within_withdrawal_limits(request.user, amount_usdt=amount_usdt)
+        except WithdrawalLimitError as e:
+            return Response(
+                {"code": e.code, "message": e.message},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         idem_key = request.headers.get("Idempotency-Key") or str(uuid.uuid4())
         existing = Transaction.objects.filter(
@@ -218,6 +233,8 @@ class WithdrawInitView(APIView):
         ).first()
         if existing:
             return Response(TransactionSerializer(existing).data, status=status.HTTP_200_OK)
+
+        needs_review = requires_admin_review(amount_usdt)
 
         with db_tx.atomic():
             # Debit H Coins (raises InsufficientBalance if not enough)
@@ -236,18 +253,22 @@ class WithdrawInitView(APIView):
                 wallet=wallet,
                 type="withdraw",
                 network=network,
-                amount_usdt=amount_usdt - fee,
+                amount_usdt=net_amount,
                 amount_hcoin=tokens,
                 wallet_address=addr,
                 status="pending",
+                requires_admin_review=needs_review,
+                network_fee_usdt=fee,
                 idempotency_key=idem_key,
                 ip_address=_client_ip(request),
             )
             log_audit("withdraw_init", user=request.user, ip=_client_ip(request),
                       tx_id=str(tx.id), amount=str(amount_usdt), network=network,
-                      address=addr[:8] + "...")
+                      address=addr[:8] + "...", needs_admin_review=needs_review)
 
-        if settings.WITHDRAWAL_AUTO_APPROVE:
+        # Auto-broadcast only if both the env flag is set AND the
+        # amount is below the admin-review threshold.
+        if settings.WITHDRAWAL_AUTO_APPROVE and not needs_review:
             process_withdrawal.delay(str(tx.id))
 
         return Response(TransactionSerializer(tx).data, status=status.HTTP_202_ACCEPTED)

@@ -21,7 +21,7 @@
 set -e
 
 # Apps with custom models we want to generate migrations for.
-APPS="core users wallet transactions referrals rewards notifications support reference trade"
+APPS="core users wallet transactions payments referrals rewards notifications support reference trade"
 
 is_db_setup_leader() {
     # Only the django service runs DB setup; the others tail-wait.

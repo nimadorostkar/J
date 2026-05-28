@@ -84,6 +84,29 @@ class Transaction(models.Model):
 
     ip_address = models.GenericIPAddressField(null=True, blank=True)
 
+    # ── Crypto payment gateway fields ──────────────────────────────
+    # Sender (for deposits) and recipient (mirrors `wallet_address`
+    # but in plain text — for analytics/diagnostics; the
+    # encrypted-at-rest copy on `wallet_address` is what we sign
+    # with).
+    from_address = models.CharField(max_length=128, null=True, blank=True)
+    block_number = models.BigIntegerField(null=True, blank=True)
+    confirmations = models.IntegerField(default=0)
+    network_fee_usdt = models.DecimalField(
+        max_digits=18, decimal_places=8, null=True, blank=True
+    )
+
+    # Manual-review workflow for high-value withdrawals.
+    requires_admin_review = models.BooleanField(default=False)
+    admin_approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True, blank=True,
+        on_delete=models.SET_NULL,
+        related_name="approved_transactions",
+    )
+    admin_approved_at = models.DateTimeField(null=True, blank=True)
+    failure_reason = models.CharField(max_length=500, null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

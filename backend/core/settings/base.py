@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "users",
     "wallet",
     "transactions",
+    "payments",
     "referrals",
     "rewards",
     "notifications",
@@ -282,11 +283,83 @@ REFERRAL_MILESTONE_REWARD_HCOIN = config(
     "REFERRAL_MILESTONE_REWARD_HCOIN", default=1, cast=int
 )
 
-# Blockchain
-TRON_API_KEY = config("TRON_API_KEY", default="")
-ETHEREUM_API_KEY = config("ETHEREUM_API_KEY", default="")
+# ─── Blockchain / Crypto Payment Gateway ────────────────────────────
+# A "master hot wallet" is one address per network the platform owns.
+# Inbound: customers send USDT to that address (DepositAddressView
+# surfaces it). Outbound: the same private key signs withdrawals.
+#
+# All keys MUST be set via env in production — the defaults below let
+# `docker compose up` start in dev mode with GATEWAY_DRY_RUN=True so no
+# real chain calls happen until ops opts in.
+
+# Master hot-wallet ADDRESSES (public — fine to commit per environment).
 USDT_TRC20_WALLET = config("USDT_TRC20_WALLET", default="")
 USDT_ERC20_WALLET = config("USDT_ERC20_WALLET", default="")
+
+# Master hot-wallet PRIVATE KEYS (env-only — never commit).
+# Tron: hex string without 0x prefix. Ethereum: hex string with or without 0x.
+TRON_HOT_WALLET_PRIVATE_KEY = config("TRON_HOT_WALLET_PRIVATE_KEY", default="")
+ETHEREUM_HOT_WALLET_PRIVATE_KEY = config("ETHEREUM_HOT_WALLET_PRIVATE_KEY", default="")
+
+# Network selection: 'mainnet' | 'shasta' | 'nile' for Tron,
+# 'mainnet' | 'sepolia' | 'goerli' for Ethereum.
+TRON_NETWORK = config("TRON_NETWORK", default="mainnet")
+ETHEREUM_NETWORK = config("ETHEREUM_NETWORK", default="mainnet")
+
+# RPC / API endpoints.
+TRON_FULLNODE_URL = config(
+    "TRON_FULLNODE_URL",
+    default="https://api.trongrid.io",
+)
+ETHEREUM_RPC_URL = config(
+    "ETHEREUM_RPC_URL",
+    default="https://eth-mainnet.public.blastapi.io",
+)
+TRON_API_KEY = config("TRON_API_KEY", default="")
+ETHEREUM_API_KEY = config("ETHEREUM_API_KEY", default="")  # Etherscan, used for tx-listing.
+ETHERSCAN_API_URL = config("ETHERSCAN_API_URL", default="https://api.etherscan.io/api")
+
+# USDT contract addresses. Tron USDT is TRC20; Ethereum USDT is ERC20.
+USDT_TRC20_CONTRACT = config(
+    "USDT_TRC20_CONTRACT",
+    default="TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",  # mainnet USDT-TRC20
+)
+USDT_ERC20_CONTRACT = config(
+    "USDT_ERC20_CONTRACT",
+    default="0xdAC17F958D2ee523a2206206994597C13D831ec7",  # mainnet USDT-ERC20
+)
+USDT_DECIMALS_TRC20 = config("USDT_DECIMALS_TRC20", default=6, cast=int)
+USDT_DECIMALS_ERC20 = config("USDT_DECIMALS_ERC20", default=6, cast=int)
+
+# Confirmation thresholds before a deposit is credited.
+MIN_CONFIRMATIONS_TRC20 = config("MIN_CONFIRMATIONS_TRC20", default=19, cast=int)
+MIN_CONFIRMATIONS_ERC20 = config("MIN_CONFIRMATIONS_ERC20", default=12, cast=int)
+
+# Withdrawal safety rails.
+MIN_WITHDRAWAL_USDT = config("MIN_WITHDRAWAL_USDT", default=5, cast=int)
+MAX_WITHDRAWAL_USDT = config("MAX_WITHDRAWAL_USDT", default=10000, cast=int)
+DAILY_WITHDRAWAL_LIMIT_USDT = config(
+    "DAILY_WITHDRAWAL_LIMIT_USDT", default=50000, cast=int
+)
+# Any withdrawal at or above this amount needs manual admin approval even
+# if WITHDRAWAL_AUTO_APPROVE is on.
+WITHDRAWAL_ADMIN_REVIEW_THRESHOLD_USDT = config(
+    "WITHDRAWAL_ADMIN_REVIEW_THRESHOLD_USDT", default=1000, cast=int
+)
+
+# Scanner / poller knobs.
+GATEWAY_SCAN_BATCH_SIZE = config("GATEWAY_SCAN_BATCH_SIZE", default=50, cast=int)
+GATEWAY_RPC_TIMEOUT_SECONDS = config(
+    "GATEWAY_RPC_TIMEOUT_SECONDS", default=15, cast=int
+)
+
+# Master kill-switch. When True, NO real on-chain calls are made:
+# `verify_deposit` accepts any tx_hash, `process_withdrawal` simulates a
+# transfer. Set to False in production. Defaults True so the project
+# boots safely without leaking keys or burning gas.
+GATEWAY_DRY_RUN = config("GATEWAY_DRY_RUN", default=True, cast=bool)
+
+# Webhook HMAC secret (used by BlockchainWebhookView).
 BLOCKCHAIN_WEBHOOK_SECRET = config("BLOCKCHAIN_WEBHOOK_SECRET", default="change-me")
 
 # Email
