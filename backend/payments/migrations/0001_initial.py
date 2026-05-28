@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="GatewayCursor",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("network", models.CharField(choices=[("TRC20", "TRC20"), ("ERC20", "ERC20")], max_length=10, unique=True)),
                 ("last_block", models.BigIntegerField(default=0)),
                 ("last_tx_hash", models.CharField(blank=True, default="", max_length=128)),
@@ -30,7 +30,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="GatewayEventLog",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("network", models.CharField(choices=[("TRC20", "TRC20"), ("ERC20", "ERC20")], max_length=10)),
                 ("tx_hash", models.CharField(db_index=True, max_length=128)),
                 ("log_index", models.IntegerField(default=0)),
@@ -45,8 +45,8 @@ class Migration(migrations.Migration):
             ],
             options={
                 "indexes": [
-                    models.Index(fields=["network", "to_address"], name="payments_ga_network_5a8eef_idx"),
-                    models.Index(fields=["matched_user_id"], name="payments_ga_matched_61c1a3_idx"),
+                    models.Index(fields=["network", "to_address"], name="payments_ga_network_b5240d_idx"),
+                    models.Index(fields=["matched_user_id"], name="payments_ga_matched_8e091b_idx"),
                 ],
                 "constraints": [
                     models.UniqueConstraint(

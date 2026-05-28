@@ -1,16 +1,9 @@
 # === FILE: backend/transactions/migrations/0001_initial.py ===
 """Initial schema for the Transaction model.
 
-The repo doesn't ship hand-written migrations historically (the
-docker-entrypoint regenerates 0001_initial on every boot). We pin a
-deterministic initial here so that:
-  * new installs end up with the full Transaction schema in one step,
-  * new fields added later (0002_…) have a stable parent to depend on,
-  * the entrypoint's "reconcile missing tables" pass works the same
-    way it did before.
-
-If a previous boot already ran an auto-generated 0001_initial against
-your DB, Django records 0001 as applied and this file is a no-op.
+Format mirrors what Django's makemigrations autogen would produce so
+the docker-entrypoint's boot-time `makemigrations --noinput` step is a
+no-op against this file (no spurious rename / re-add migrations).
 """
 import uuid
 
@@ -84,19 +77,22 @@ class Migration(migrations.Migration):
             options={
                 "ordering": ["-created_at"],
                 "indexes": [
-                    models.Index(fields=["user", "-created_at"], name="transaction_user_id_5e3a5d_idx"),
-                    models.Index(fields=["status", "type"], name="transaction_status_4b7a01_idx"),
-                    models.Index(fields=["tx_hash"], name="transaction_tx_hash_3f1c7b_idx"),
-                    models.Index(fields=["type", "commission_from_user"], name="transaction_type_a83b9e_idx"),
+                    models.Index(fields=["user", "-created_at"], name="transaction_user_id_386a11_idx"),
+                    models.Index(fields=["status", "type"], name="transaction_status_ea0d93_idx"),
+                    models.Index(fields=["tx_hash"], name="transaction_tx_hash_2e17d1_idx"),
+                    models.Index(fields=["type", "commission_from_user"], name="transaction_type_13400f_idx"),
                 ],
                 "constraints": [
                     models.UniqueConstraint(
-                        condition=models.Q(("tx_hash__isnull", False)) & ~models.Q(("tx_hash", "")),
+                        condition=models.Q(
+                            models.Q(("tx_hash", None), _negated=True),
+                            models.Q(("tx_hash", ""), _negated=True),
+                        ),
                         fields=("tx_hash",),
                         name="tx_unique_hash_when_set",
                     ),
                     models.UniqueConstraint(
-                        condition=models.Q(("idempotency_key__isnull", False)),
+                        condition=models.Q(("idempotency_key", None), _negated=True),
                         fields=("user", "idempotency_key"),
                         name="tx_idempotency_unique_per_user",
                     ),

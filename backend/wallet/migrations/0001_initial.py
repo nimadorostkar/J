@@ -1,5 +1,9 @@
 # === FILE: backend/wallet/migrations/0001_initial.py ===
-"""Initial schema for the Wallet + DepositAddress models."""
+"""Initial schema for the Wallet + DepositAddress models.
+
+Format mirrors Django's autogen output so docker-entrypoint's
+`makemigrations` step is a no-op against this file.
+"""
 from decimal import Decimal
 
 import django.db.models.deletion
@@ -19,7 +23,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Wallet",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("h_coin_balance", models.DecimalField(decimal_places=8, default=Decimal("0"), max_digits=18)),
                 ("usdt_balance", models.DecimalField(decimal_places=8, default=Decimal("0"), max_digits=18)),
                 ("reward_active", models.BooleanField(default=False)),
@@ -50,7 +54,7 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="DepositAddress",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False)),
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("network", models.CharField(choices=[("TRC20", "TRC20"), ("ERC20", "ERC20")], max_length=10)),
                 ("address", models.CharField(max_length=128)),
                 ("is_active", models.BooleanField(default=True)),
@@ -65,7 +69,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 "indexes": [
-                    models.Index(fields=["network", "is_active"], name="wallet_depo_network_8f6f1a_idx"),
+                    models.Index(fields=["network", "is_active"], name="wallet_depo_network_23ca7e_idx"),
                 ],
             },
         ),
