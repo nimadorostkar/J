@@ -159,7 +159,7 @@ export default function Trade() {
           </div>
         </div>
         <div className="text-gray-400 text-[15px] mt-2">
-          ≈ <CountUp to={wallet?.usdtBalance || 0} decimals={2} /> USDT
+          ≈ <CountUp to={wallet?.usdtEquivalent || 0} decimals={2} /> USDT
         </div>
       </motion.div>
 

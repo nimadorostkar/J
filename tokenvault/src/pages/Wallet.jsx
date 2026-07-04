@@ -164,7 +164,7 @@ export default function WalletPage() {
           </div>
         </div>
         <div className="text-gray-400 text-[15px] mt-2">
-          ≈ <CountUp to={wallet.usdtBalance} decimals={2} /> USDT
+          ≈ <CountUp to={wallet.usdtEquivalent} decimals={2} /> USDT
         </div>
       </motion.div>
 
